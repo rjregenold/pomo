@@ -20,4 +20,4 @@ main = HA.runHalogenAff do
   timerSettings <- maybe (throwError (error "invalid timer settings")) pure defaultTimerSettings
   let env = { runEnv: RunEnv.Dev, timerSettings }
       rootComponent = H.hoist (runAppM env) Router.component
-  runUI rootComponent env body
+  runUI rootComponent {} body

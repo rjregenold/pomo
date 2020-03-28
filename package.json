@@ -8,6 +8,7 @@
   },
   "scripts": {
     "postinstall": "spago install",
+    "clean": "rm -rf node_modules output .spago dist/* *.lock",
     "dev": "parcel assets/index.html",
     "watch": "spago build --watch",
     "test": "spago test"
