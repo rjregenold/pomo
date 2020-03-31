@@ -3,9 +3,8 @@ module Test.Main where
 import Prelude
 
 import Effect (Effect)
-import Effect.Class.Console (log)
+import Test.Pomo.Data.TimerSettings as TimerSettings
 
 main :: Effect Unit
 main = do
-  log "🍝"
-  log "You should add some tests."
+  TimerSettings.main

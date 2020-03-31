@@ -1,8 +1,6 @@
 module Pomo.Data.TimerSettings 
   ( DailyGoal
-  , mkDailyGoal
   , PomosBetweenLongBreak
-  , mkPomosBetweenLongBreak
   , TimerSettings
   , defaultTimerSettings
   )
@@ -10,25 +8,52 @@ module Pomo.Data.TimerSettings
 
 import Prelude
 
-import Data.Int (toNumber)
+import Data.Enum (class Enum, class BoundedEnum, Cardinality(..), fromEnum, toEnum)
 import Data.Maybe (Maybe(..))
+import Data.Newtype (class Newtype)
 import Data.Time.Duration (Minutes(..))
 
 newtype PomosBetweenLongBreak = PomosBetweenLongBreak Int
 
-mkPomosBetweenLongBreak :: Int -> Maybe PomosBetweenLongBreak
-mkPomosBetweenLongBreak x =
-  if x >= 0 && x <= 48
-    then Just (PomosBetweenLongBreak x)
-    else Nothing
+derive instance newtypePomosBetweenLongBreak :: Newtype PomosBetweenLongBreak _
+derive newtype instance eqPomosBetweenLongBreak :: Eq PomosBetweenLongBreak
+derive newtype instance ordPomosBetweenLongBreak :: Ord PomosBetweenLongBreak
+
+instance boundedPomosBetweenLongBreak :: Bounded PomosBetweenLongBreak where
+  bottom = PomosBetweenLongBreak 0
+  top = PomosBetweenLongBreak 48
+
+instance enumPomosBetweenLongBreak :: Enum PomosBetweenLongBreak where
+  succ = toEnum <<< (_ + 1) <<< fromEnum
+  pred = toEnum <<< (_ - 1) <<< fromEnum
+
+instance boundedEnumPomosBetweenLongBreak :: BoundedEnum PomosBetweenLongBreak where
+  cardinality = Cardinality 49
+  toEnum n
+    | n >= 0 && n <= 48 = Just (PomosBetweenLongBreak n)
+    | otherwise = Nothing
+  fromEnum (PomosBetweenLongBreak n) = n
 
 newtype DailyGoal = DailyGoal Int
 
-mkDailyGoal :: Int -> Maybe DailyGoal
-mkDailyGoal x = 
-  if x >= 1 && x <= 48
-    then Just (DailyGoal x)
-    else Nothing
+derive instance newtypeDailyGoal :: Newtype DailyGoal _
+derive newtype instance eqDailyGoal :: Eq DailyGoal
+derive newtype instance ordDailyGoal :: Ord DailyGoal
+
+instance boundedDailyGoal :: Bounded DailyGoal where
+  bottom = DailyGoal 1
+  top = DailyGoal 48
+
+instance enumDailyGoal :: Enum DailyGoal where
+  succ = toEnum <<< (_ + 1) <<< fromEnum
+  pred = toEnum <<< (_ - 1) <<< fromEnum
+
+instance boundedEnumDailyGoal :: BoundedEnum DailyGoal where
+  cardinality = Cardinality 48
+  toEnum n
+    | n >= 1 && n <= 48 = Just (DailyGoal n)
+    | otherwise = Nothing
+  fromEnum (DailyGoal n) = n
 
 type TimerSettings =
   { pomoDuration :: Minutes
@@ -38,17 +63,14 @@ type TimerSettings =
   , pomoDailyGoal:: DailyGoal
   }
 
-mkMinutes :: Int -> Minutes
-mkMinutes = Minutes <<< toNumber
-
 defaultTimerSettings :: Maybe TimerSettings
 defaultTimerSettings = defaults
-  <$> mkPomosBetweenLongBreak 4
-  <*> mkDailyGoal 12
+  <$> toEnum 4
+  <*> toEnum 12
   where defaults =
-          { pomoDuration: mkMinutes 25
-          , shortBreakDuration: mkMinutes 5
-          , longBreakDuration: mkMinutes 15
+          { pomoDuration: Minutes 25.0
+          , shortBreakDuration: Minutes 5.0
+          , longBreakDuration: Minutes 15.0
           , pomosBetweenLongBreak: _
           , pomoDailyGoal: _
           }

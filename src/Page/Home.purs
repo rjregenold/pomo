@@ -3,7 +3,7 @@ module Pomo.Page.Home where
 import Prelude
 
 import Control.Monad.Reader (class MonadAsk, ask)
-import Data.DateTime.Instant (Instant, unInstant)
+import Data.DateTime.Instant (Instant)
 import Data.Maybe (Maybe(..))
 import Data.Time.Duration (Milliseconds(..))
 import Effect.Aff (delay)
@@ -13,6 +13,7 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Pomo.Capability.Now (class Now, now)
+import Pomo.Data.Time (instantDiff)
 import Pomo.Data.TimerSettings (TimerSettings)
 
 type State =
@@ -69,10 +70,9 @@ component =
     buttonLabel = case state.timerState of
       NotRunning -> "Start"
       Running _ -> "Stop"
-    msDiff (Milliseconds a) (Milliseconds b) = a - b
     timerLabel = case state.timerState of
       NotRunning -> "25:00"
-      Running ts -> show (msDiff (unInstant ts.currentTime) (unInstant ts.startedAt))
+      Running ts -> show (instantDiff ts.currentTime ts.startedAt)
 
   handleAction :: forall slots. Action -> H.HalogenM State Action slots Void m Unit
   handleAction action = case action of
@@ -85,7 +85,7 @@ component =
         NotRunning -> do
           currentTime <- now
           let loop = do
-                H.liftAff (delay (Milliseconds 1000.0))
+                H.liftAff (delay (Milliseconds 50.0))
                 handleAction Tick
                 loop
           forkId <- H.fork loop
