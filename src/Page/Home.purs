@@ -87,7 +87,7 @@ component =
         NotRunning -> do
           currentTime <- now
           let loop = do
-                H.liftAff (delay (Milliseconds 50.0))
+                H.liftAff (delay tickDelay)
                 handleAction Tick
                 loop
           forkId <- H.fork loop
@@ -112,8 +112,10 @@ component =
           then stopTimer st
           else H.put (st { timerState = Running (ts { timer = timer' }) })
     where
+    tickDelay = Milliseconds 50.0
+
     stopTimer st = case st.timerState of
       NotRunning -> pure unit
       Running ts -> do
-        H.kill ts.forkId
         H.put (st { timerState = NotRunning })
+        H.kill ts.forkId

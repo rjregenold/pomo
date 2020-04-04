@@ -53,6 +53,7 @@ main = do
   assert (Timer.isComplete timer == false)
   assert (Timer.isComplete timer' == false)
   assert (Timer.isComplete timer'')
+  assert (Timer.isComplete timer''')
 
   log "test renderDurationAsMinSec"
   assert (Timer.renderDurationAsMinSec (Duration.Milliseconds 0.0) == "00:00")
