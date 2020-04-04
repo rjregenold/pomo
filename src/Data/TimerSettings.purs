@@ -1,6 +1,5 @@
 module Pomo.Data.TimerSettings 
   ( DailyGoal
-  , PomosBetweenLongBreak
   , TimerSettings
   , defaultTimerSettings
   )
@@ -12,27 +11,7 @@ import Data.Enum (class Enum, class BoundedEnum, Cardinality(..), fromEnum, toEn
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.Time.Duration (Minutes(..))
-
-newtype PomosBetweenLongBreak = PomosBetweenLongBreak Int
-
-derive instance newtypePomosBetweenLongBreak :: Newtype PomosBetweenLongBreak _
-derive newtype instance eqPomosBetweenLongBreak :: Eq PomosBetweenLongBreak
-derive newtype instance ordPomosBetweenLongBreak :: Ord PomosBetweenLongBreak
-
-instance boundedPomosBetweenLongBreak :: Bounded PomosBetweenLongBreak where
-  bottom = PomosBetweenLongBreak 0
-  top = PomosBetweenLongBreak 48
-
-instance enumPomosBetweenLongBreak :: Enum PomosBetweenLongBreak where
-  succ = toEnum <<< (_ + 1) <<< fromEnum
-  pred = toEnum <<< (_ - 1) <<< fromEnum
-
-instance boundedEnumPomosBetweenLongBreak :: BoundedEnum PomosBetweenLongBreak where
-  cardinality = Cardinality 49
-  toEnum n
-    | n >= 0 && n <= 48 = Just (PomosBetweenLongBreak n)
-    | otherwise = Nothing
-  fromEnum (PomosBetweenLongBreak n) = n
+import Pomo.Data.PomoCount (PomoCount)
 
 newtype DailyGoal = DailyGoal Int
 
@@ -59,7 +38,7 @@ type TimerSettings =
   { pomoDuration :: Minutes
   , shortBreakDuration :: Minutes
   , longBreakDuration :: Minutes
-  , pomosBetweenLongBreak :: PomosBetweenLongBreak
+  , pomosBetweenLongBreak :: PomoCount
   , pomoDailyGoal:: DailyGoal
   }
 

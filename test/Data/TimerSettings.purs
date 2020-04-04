@@ -8,14 +8,15 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Effect (Effect)
 import Effect.Console (log)
+import Pomo.Data.PomoCount (PomoCount)
 import Pomo.Data.TimerSettings as TimerSettings
 import Test.Assert (assert)
 import Type.Proxy (Proxy(..))
 
 main :: Effect Unit
 main = do
-  log "checking that PomosBetweenLongBreak is bounded enum"
-  checkBoundedEnum (Proxy :: Proxy TimerSettings.PomosBetweenLongBreak)
+  log "checking that PomoCount is bounded enum"
+  checkBoundedEnum (Proxy :: Proxy PomoCount)
 
   log "checking that DailyGoal is bounded enum"
   checkBoundedEnum (Proxy :: Proxy TimerSettings.DailyGoal)
