@@ -13,27 +13,40 @@ import Data.Time.Duration (class Duration, Milliseconds(..), Minutes(..), Second
 import Pomo.Capability.Now (class Now, now)
 import Pomo.Data.Time (instantDiff, isNegDuration)
 
-type Timer =
+type RunningTimerState =
   { duration :: Minutes
   , currentTime :: Instant
   , startedAt :: Instant
   }
 
+data Timer
+  = NotRunning Minutes
+  | Running RunningTimerState
+
 -- | returns the number of milliseconds remaining for the given timer
 remainingMs :: Timer -> Milliseconds
-remainingMs t =
-  let diffMs = instantDiff t.currentTime t.startedAt
-   in fromDuration t.duration <> (negateDuration diffMs)
+remainingMs = case _ of
+  NotRunning d -> fromDuration d
+  Running t ->
+    let diffMs = instantDiff t.currentTime t.startedAt
+     in fromDuration t.duration <> (negateDuration diffMs)
 
 -- | returns true if the timer is complete
 isComplete :: Timer -> Boolean
 isComplete = isNegDuration <<< remainingMs
 
 -- | takes a timer and moves it along to the next tick
-tick :: forall m. Now m => Timer -> m Timer
-tick t = do
-  currentTime <- now
-  pure (t { currentTime = currentTime })
+tickM :: forall m. Now m => Timer -> m Timer
+tickM timer = case timer of
+  NotRunning _ -> pure timer
+  Running t -> do
+    currentTime <- now
+    pure (Running (t { currentTime = currentTime }))
+
+tick :: Timer -> Instant -> Timer
+tick timer currentTime = case timer of
+  NotRunning _ -> timer
+  Running t -> Running $ t { currentTime = currentTime }
 
 padStart :: Int -> Char -> String -> String
 padStart n c v =

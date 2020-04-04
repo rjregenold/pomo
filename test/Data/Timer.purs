@@ -30,30 +30,28 @@ main = do
   let date = unsafePartial (fromJust (Date.canonicalDate <$> (toEnum 2020) <*> (toEnum 1) <*> (toEnum 1)))
       time = unsafePartial (fromJust (Time.Time <$> (toEnum 0) <*> (toEnum 0) <*> (toEnum 0) <*> (toEnum 0)))
       datetime = DateTime.DateTime date time
-      timer = 
-        { duration: Duration.Minutes 25.0
+      timerDuration = Duration.Minutes 25.0
+      timer = Timer.Running
+        { duration: timerDuration
         , currentTime: Instant.fromDateTime datetime
         , startedAt: Instant.fromDateTime datetime 
         }
-      timer' = timer
-        { currentTime = toInstant (DateTime.adjust (Duration.Milliseconds 1032.0) datetime)
-        }
-      timer'' = timer
-        { currentTime = toInstant (DateTime.adjust timer.duration datetime)
-        }
-      timer''' = timer
-        { currentTime = toInstant (DateTime.adjust (timer.duration <> (Duration.Minutes 1.0)) datetime)
-        }
+      timer' = Timer.tick timer $ toInstant (DateTime.adjust (Duration.Milliseconds 1032.0) datetime)
+      timer'' = Timer.tick timer $ toInstant (DateTime.adjust timerDuration datetime)
+      timer''' = Timer.tick timer $ toInstant (DateTime.adjust (timerDuration <> (Duration.Minutes 1.0)) datetime)
+      notRunningTimer = Timer.NotRunning timerDuration
 
   log "test remainingMs"
-  assert (Timer.remainingMs timer == Duration.fromDuration timer.duration)
+  assert (Timer.remainingMs timer == Duration.fromDuration timerDuration)
   assert (Timer.remainingMs timer'' == Duration.Milliseconds 0.0)
+  assert (Timer.remainingMs notRunningTimer == Duration.fromDuration timerDuration)
 
   log "test isComplete"
   assert (Timer.isComplete timer == false)
   assert (Timer.isComplete timer' == false)
   assert (Timer.isComplete timer'')
   assert (Timer.isComplete timer''')
+  assert (Timer.isComplete notRunningTimer == false)
 
   log "test renderDurationAsMinSec"
   assert (Timer.renderDurationAsMinSec (Duration.Milliseconds 0.0) == "00:00")
@@ -66,6 +64,7 @@ main = do
   assert (Timer.render timer' == "24:58")
   assert (Timer.render timer'' == "00:00")
   assert (Timer.render timer''' == "00:00")
+  assert (Timer.render notRunningTimer == "25:00")
 
   where
 
