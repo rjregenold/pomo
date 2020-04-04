@@ -47,7 +47,7 @@ defaultTimerSettings = defaults
   <$> toEnum 4
   <*> toEnum 12
   where defaults =
-          { pomoDuration: Minutes 25.0
+          { pomoDuration: Minutes 0.1
           , shortBreakDuration: Minutes 5.0
           , longBreakDuration: Minutes 15.0
           , pomosBetweenLongBreak: _

@@ -23,6 +23,8 @@ data Timer
   = NotRunning Minutes
   | Running RunningTimerState
 
+derive instance eqTimer :: Eq Timer
+
 -- | returns the number of milliseconds remaining for the given timer
 remainingMs :: Timer -> Milliseconds
 remainingMs = case _ of
@@ -37,16 +39,28 @@ isComplete = isNegDuration <<< remainingMs
 
 -- | takes a timer and moves it along to the next tick
 tickM :: forall m. Now m => Timer -> m Timer
-tickM timer = case timer of
-  NotRunning _ -> pure timer
-  Running t -> do
-    currentTime <- now
-    pure (Running (t { currentTime = currentTime }))
+tickM timer = do
+  currentTime <- now
+  pure (tick timer currentTime)
 
 tick :: Timer -> Instant -> Timer
 tick timer currentTime = case timer of
   NotRunning _ -> timer
-  Running t -> Running $ t { currentTime = currentTime }
+  Running t -> Running t { currentTime = currentTime }
+
+startTimer :: Timer -> Instant -> Timer
+startTimer timer currentTime = case timer of
+  NotRunning d -> Running
+    { currentTime: currentTime
+    , startedAt: currentTime
+    , duration: d
+    }
+  Running _ -> timer
+
+stopTimer :: Timer -> Minutes -> Timer
+stopTimer timer d = case timer of
+  NotRunning _ -> timer
+  Running _ -> NotRunning d
 
 padStart :: Int -> Char -> String -> String
 padStart n c v =

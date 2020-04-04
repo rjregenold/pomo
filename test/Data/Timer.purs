@@ -53,6 +53,14 @@ main = do
   assert (Timer.isComplete timer''')
   assert (Timer.isComplete notRunningTimer == false)
 
+  log "test startTimer"
+  assert (Timer.startTimer timer (Instant.fromDateTime datetime) == timer)
+  assert (Timer.startTimer notRunningTimer (Instant.fromDateTime datetime) == timer)
+
+  log "test stopTimer"
+  assert (Timer.stopTimer timer timerDuration == notRunningTimer)
+  assert (Timer.stopTimer notRunningTimer timerDuration == notRunningTimer)
+
   log "test renderDurationAsMinSec"
   assert (Timer.renderDurationAsMinSec (Duration.Milliseconds 0.0) == "00:00")
   assert (Timer.renderDurationAsMinSec (Duration.Minutes 25.0) == "25:00")

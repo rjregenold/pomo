@@ -3,24 +3,24 @@ module Pomo.Page.Home where
 import Prelude
 
 import Control.Monad.Reader (class MonadAsk, ask)
-import Data.Maybe (Maybe(..), maybe)
-import Data.Time.Duration (Milliseconds(..), Minutes(..))
+import Data.Foldable (for_, traverse_)
+import Data.Maybe (Maybe(..))
+import Data.Time.Duration (Milliseconds(..))
 import Effect.Aff (delay)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-import Pomo.Capability.Now (class Now, now, nowDate)
+import Pomo.Capability.Now (class Now, now)
 import Pomo.Data.PomoSession (PomoSession)
+import Pomo.Data.PomoSession as PomoSession
 import Pomo.Data.Timer as Timer
 import Pomo.Data.TimerSettings (TimerSettings)
 
 type State =
-  { timerSettings :: Maybe TimerSettings
-  , currentTimer :: Timer.Timer
+  { pomoSession :: PomoSession
   , forkId :: Maybe H.ForkId
-  , pomoSession :: Maybe PomoSession
   }
 
 data Action
@@ -37,10 +37,8 @@ component
 component = 
   H.mkComponent
     { initialState: \_ ->
-        { timerSettings: Nothing
-        , currentTimer: Timer.NotRunning (Minutes 25.0)
+        { pomoSession: PomoSession.defaultPomoSession
         , forkId: Nothing
-        , pomoSession: Nothing
         }
     , render
     , eval: H.mkEval $ H.defaultEval
@@ -61,27 +59,20 @@ component =
           [ HH.text buttonLabel ]
       ]
     where
-    buttonLabel = case state.currentTimer of
+    buttonLabel = case state.pomoSession.currentTimer.timer of
       Timer.NotRunning _ -> "Start"
       Timer.Running _ -> "Stop"
-    timerLabel = Timer.render state.currentTimer
+    timerLabel = Timer.render state.pomoSession.currentTimer.timer
 
   handleAction :: forall slots. Action -> H.HalogenM State Action slots Void m Unit
   handleAction action = case action of
     Init -> do
       { timerSettings } <- ask
-      date <- nowDate
-      let pomoSession =
-            { date: date
-            , completedPomos: bottom
-            }
-      H.modify_ _ { timerSettings = Just timerSettings 
-                  , currentTimer = Timer.NotRunning timerSettings.pomoDuration
-                  , pomoSession = Just pomoSession
+      H.modify_ _ { pomoSession = PomoSession.initPomoSession timerSettings.pomoDuration
                   }
     ToggleTimer -> do
       st <- H.get
-      case st.currentTimer of
+      case st.pomoSession.currentTimer.timer of
         Timer.NotRunning d -> do
           currentTime <- now
           let loop = do
@@ -89,32 +80,32 @@ component =
                 handleAction Tick
                 loop
           forkId <- H.fork loop
-          H.put $ st
-            { currentTimer = Timer.Running
-              { currentTime: currentTime
-              , startedAt: currentTime
-              , duration: d
-              }
+          H.put st
+            { pomoSession = PomoSession.startTimer st.pomoSession currentTime
             , forkId = Just forkId
             }
-        Timer.Running _ -> stopTimer st
+        Timer.Running _ -> do
+          { timerSettings } <- ask
+          H.put st
+            { pomoSession = PomoSession.stopTimer st.pomoSession timerSettings
+            , forkId = Nothing
+            }
+          killFork st.forkId
+
     Tick -> do
       st <- H.get
-      timer' <- Timer.tickM st.currentTimer
-      if Timer.isComplete timer'
-      then stopTimer st
-      else H.put (st { currentTimer = timer' })
+      { timerSettings } <- ask
+      mSess' <- PomoSession.tickSessionM st.pomoSession timerSettings
+      for_ mSess' $ \sess' -> do
+        let done = Timer.isComplete sess'.currentTimer.timer
+        H.put st
+          { pomoSession = sess'
+          , forkId = if done then Nothing else st.forkId
+          }
+        when done $ killFork st.forkId
 
     where
 
     tickDelay = Milliseconds 50.0
 
-    stopTimer :: State -> H.HalogenM State Action slots Void m Unit
-    stopTimer st = case st.currentTimer of
-      Timer.NotRunning _ -> pure unit
-      Timer.Running _ -> do
-        H.put $ st 
-                { currentTimer = Timer.NotRunning (Minutes 25.0)
-                , forkId = Nothing 
-                }
-        maybe (pure unit) H.kill st.forkId
+    killFork = traverse_ H.kill
