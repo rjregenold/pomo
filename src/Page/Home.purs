@@ -3,9 +3,8 @@ module Pomo.Page.Home where
 import Prelude
 
 import Control.Monad.Reader (class MonadAsk, ask)
-import Data.DateTime.Instant (Instant)
 import Data.Maybe (Maybe(..))
-import Data.Time.Duration (Milliseconds(..))
+import Data.Time.Duration (Milliseconds(..), Minutes(..))
 import Effect.Aff (delay)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
@@ -13,18 +12,18 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Pomo.Capability.Now (class Now, now)
-import Pomo.Data.Time (instantDiff)
+import Pomo.Data.Timer as Timer
 import Pomo.Data.TimerSettings (TimerSettings)
 
 type State =
   { timerSettings :: Maybe TimerSettings
   , timerState :: TimerState
+  , nextTimerDuration :: Minutes
   }
 
 type RunningTimerState =
-  { startedAt :: Instant
+  { timer :: Timer.Timer
   , forkId :: H.ForkId
-  , currentTime :: Instant 
   }
 
 data TimerState
@@ -37,16 +36,17 @@ data Action
   | Tick
 
 component 
-  :: forall q m r
+  :: forall q r m
    . MonadAff m
   => MonadAsk { timerSettings :: TimerSettings | r } m
   => Now m
   => H.Component HH.HTML q {} Void m
 component = 
   H.mkComponent
-    { initialState: \_ -> 
+    { initialState: \_ ->
         { timerSettings: Nothing
         , timerState: NotRunning
+        , nextTimerDuration: Minutes 25.0
         }
     , render
     , eval: H.mkEval $ H.defaultEval
@@ -71,14 +71,16 @@ component =
       NotRunning -> "Start"
       Running _ -> "Stop"
     timerLabel = case state.timerState of
-      NotRunning -> "25:00"
-      Running ts -> show (instantDiff ts.currentTime ts.startedAt)
+      NotRunning -> Timer.renderDurationAsMinSec state.nextTimerDuration
+      Running ts -> Timer.render ts.timer
 
   handleAction :: forall slots. Action -> H.HalogenM State Action slots Void m Unit
   handleAction action = case action of
     Init -> do
       { timerSettings } <- ask
-      H.modify_ _ { timerSettings = Just timerSettings }
+      H.modify_ _ { timerSettings = Just timerSettings 
+                  , nextTimerDuration = timerSettings.pomoDuration
+                  }
     ToggleTimer -> do
       st <- H.get
       case st.timerState of
@@ -91,20 +93,27 @@ component =
           forkId <- H.fork loop
           H.put $ st
             { timerState = Running
-              { currentTime: currentTime
-              , startedAt: currentTime
+              { timer:
+                { currentTime: currentTime
+                , startedAt: currentTime
+                , duration: st.nextTimerDuration
+                }
               , forkId: forkId
               }
             }
-        Running ts -> do
-          H.kill ts.forkId
-          H.put $ st
-            { timerState = NotRunning
-            }
+        Running _ -> stopTimer st
     Tick -> do
       st <- H.get
       case st.timerState of
         NotRunning -> pure unit
         Running ts -> do
-          currentTime <- now
-          H.put $ st { timerState = Running $ ts { currentTime = currentTime } }
+          timer' <- Timer.tick ts.timer
+          if Timer.isComplete timer'
+          then stopTimer st
+          else H.put (st { timerState = Running (ts { timer = timer' }) })
+    where
+    stopTimer st = case st.timerState of
+      NotRunning -> pure unit
+      Running ts -> do
+        H.kill ts.forkId
+        H.put (st { timerState = NotRunning })

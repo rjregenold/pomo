@@ -9,9 +9,10 @@ You can edit this file as you like.
   , "formatters"
   , "halogen"
   , "now"
+  , "numbers"
   , "psci-support"
   , "type-equality"
   ]
 , packages = ./packages.dhall
-, sources = [ "src/**/*.purs", "test/**/*.purs" ]
+, sources = [ "src/**/*.purs" ]
 }
