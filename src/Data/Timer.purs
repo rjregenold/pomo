@@ -3,15 +3,22 @@ module Pomo.Data.Timer where
 import Prelude
 
 import Data.Array (replicate)
+import Data.Codec.Argonaut as CA
+import Data.Codec.Argonaut.Record as CAR
+import Data.Codec.Argonaut.Variant as CAV
 import Data.DateTime.Instant (Instant)
+import Data.Either (Either(..))
 import Data.Int (floor, toNumber)
 import Data.Newtype (over, unwrap)
 import Data.Number.Format (fixed, toStringWith)
+import Data.Profunctor (dimap)
 import Data.String (length)
 import Data.String.CodeUnits (fromCharArray)
+import Data.Symbol (SProxy(..))
+import Data.Variant as V
 import Data.Time.Duration (class Duration, Milliseconds(..), Minutes(..), Seconds(..), convertDuration, fromDuration, negateDuration)
 import Pomo.Capability.Now (class Now, now)
-import Pomo.Data.Time (instantDiff, isNegDuration)
+import Pomo.Data.Time (durationCodec, instantCodec, instantDiff, isNegDuration)
 
 type RunningTimerState =
   { duration :: Minutes
@@ -24,6 +31,33 @@ data Timer
   | Running RunningTimerState
 
 derive instance eqTimer :: Eq Timer
+
+minutesCodec :: CA.JsonCodec Minutes
+minutesCodec = durationCodec
+
+runningTimerStateCodec :: CA.JsonCodec RunningTimerState
+runningTimerStateCodec =
+  CA.object "RunningTimerState"
+    (CAR.record
+      { duration: minutesCodec
+      , currentTime: instantCodec
+      , startedAt: instantCodec
+      })
+
+timerCodec :: CA.JsonCodec Timer
+timerCodec = 
+  dimap toVariant fromVariant $ CAV.variantMatch
+    { notRunning: Right minutesCodec
+    , running: Right runningTimerStateCodec
+    }
+  where
+    toVariant = case _ of
+      NotRunning m -> V.inj (SProxy :: _ "notRunning") m
+      Running ts -> V.inj (SProxy :: _ "running") ts
+    fromVariant = V.match
+      { notRunning: NotRunning
+      , running: Running
+      }
 
 -- | returns the number of milliseconds remaining for the given timer
 remainingMs :: Timer -> Milliseconds

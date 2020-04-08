@@ -2,12 +2,17 @@ module Pomo.Data.Time where
   
 import Prelude
 
-import Data.DateTime.Instant (Instant, unInstant)
-import Data.Int (floor, round, toNumber)
-import Data.Maybe (Maybe)
-import Data.Newtype (over, over2, unwrap)
-import Data.Time.Duration (class Duration, Milliseconds(..), Minutes(..), Seconds(..), convertDuration, fromDuration)
-import Data.Tuple
+import Data.Codec.Argonaut as CA
+import Data.DateTime.Instant (Instant, instant, unInstant)
+import Data.Maybe (Maybe(..))
+import Data.Newtype (over2, unwrap)
+import Data.Time.Duration (class Duration, Milliseconds(..), fromDuration, toDuration)
+
+durationCodec :: forall a. Duration a => CA.JsonCodec a
+durationCodec = CA.prismaticCodec (Just <<< toDuration <<< Milliseconds) (unwrap <<< fromDuration) CA.number
+
+instantCodec :: CA.JsonCodec Instant
+instantCodec = CA.prismaticCodec (instant <<< Milliseconds) (unwrap <<< unInstant) CA.number
 
 -- | gets the milliseconds between the first and second Instant
 instantDiff :: Instant -> Instant -> Milliseconds

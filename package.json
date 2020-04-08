@@ -12,7 +12,8 @@
     "dev": "parcel assets/index.html",
     "watch": "spago build --watch",
     "test": "spago -x test.dhall test",
-    "testwatch": "spago -x test.dhall test --watch"
+    "testwatch": "spago -x test.dhall test --watch",
+    "bundle": "spago bundle-app --main Main --to dist/app.js && parcel build assets/index.html"
   },
   "author": "RJ Regenold",
   "license": "MIT",

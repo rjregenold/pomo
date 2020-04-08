@@ -2,19 +2,21 @@ module Pomo.Data.PomoSession where
 
 import Prelude
 
+import Data.Argonaut (fromString, stringify)
+import Data.Codec.Argonaut as CA
+import Data.Codec.Argonaut.Generic as CAG
+import Data.Codec.Argonaut.Record as CAR
 import Data.DateTime.Instant (Instant)
+import Data.Either (hush)
 import Data.Enum (fromEnum, succ)
+import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(..))
 import Data.Time.Duration (Minutes(..))
+import Pomo.Capability.LocalStorage (class LocalStorage, getItem, setItem)
 import Pomo.Capability.Now (class Now, now)
-import Pomo.Data.PomoCount (PomoCount)
+import Pomo.Data.PomoCount (PomoCount, pomoCountCodec)
 import Pomo.Data.Timer as Timer
 import Pomo.Data.TimerSettings (TimerSettings)
-
-type PomoSession =
-  { currentTimer :: PomoTimer
-  , completedPomos :: PomoCount
-  }
 
 data TimerType
   = Pomodoro
@@ -22,11 +24,36 @@ data TimerType
   | LongBreak
 
 derive instance eqTimerType :: Eq TimerType
+derive instance genericTimerType :: Generic TimerType _
+
+timerTypeCodec :: CA.JsonCodec TimerType
+timerTypeCodec = CAG.nullarySum "TimerType"
 
 type PomoTimer =
   { timer :: Timer.Timer
   , timerType :: TimerType
   }
+
+pomoTimerCodec :: CA.JsonCodec PomoTimer
+pomoTimerCodec =
+  CA.object "PomoTimer"
+    (CAR.record
+      { timer: Timer.timerCodec
+      , timerType: timerTypeCodec
+      })
+
+type PomoSession =
+  { currentTimer :: PomoTimer
+  , completedPomos :: PomoCount
+  }
+
+pomoSessionCodec :: CA.JsonCodec PomoSession
+pomoSessionCodec =
+  CA.object "PomoSession"
+    (CAR.record
+      { currentTimer: pomoTimerCodec
+      , completedPomos: pomoCountCodec
+      })
 
 defaultPomoSession :: PomoSession
 defaultPomoSession = initPomoSession $ Minutes 25.0
@@ -88,7 +115,22 @@ startTimer sess currentTime = sess
 stopTimer :: PomoSession -> TimerSettings -> PomoSession
 stopTimer sess timerSettings = sess
   { currentTimer = sess.currentTimer
-    { timer = Timer.NotRunning timerSettings.pomoDuration
+     { timer = Timer.NotRunning timerSettings.pomoDuration
     , timerType = Pomodoro
     }
   }
+
+sessionKey :: String
+sessionKey = "pomoSession"
+
+saveTimer :: forall m. LocalStorage m => PomoSession -> m Unit
+saveTimer sess = setItem sessionKey (stringify $ CA.encode pomoSessionCodec sess)
+
+restoreTimer :: forall m. LocalStorage m => m (Maybe PomoSession)
+restoreTimer = do
+  mVal <- getItem sessionKey
+  case mVal of
+    Nothing -> pure Nothing
+    Just val -> pure (dec val)
+  where
+  dec = hush <<< CA.decode pomoSessionCodec <<< fromString

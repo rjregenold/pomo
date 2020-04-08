@@ -7,9 +7,13 @@ import Effect.Aff (Aff)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Now as Now
+import Pomo.Capability.LocalStorage (class LocalStorage)
 import Pomo.Capability.Now (class Now)
 import Pomo.Env (Env)
 import Type.Equality (class TypeEquals, from)
+import Web.HTML (window)
+import Web.HTML.Window (localStorage)
+import Web.Storage.Storage (clear, getItem, removeItem, setItem)
 
 newtype AppM a = AppM (ReaderT Env Aff a)
 
@@ -32,3 +36,9 @@ instance nowAppM :: Now AppM where
   nowDate = liftEffect Now.nowDate
   nowTime = liftEffect Now.nowTime
   nowDateTime = liftEffect Now.nowDateTime
+
+instance localStorageAppM :: LocalStorage AppM where
+  getItem key = liftEffect $ getItem key =<< localStorage =<< window
+  setItem key val = liftEffect $ setItem key val =<< localStorage =<< window
+  removeItem key = liftEffect $ removeItem key =<< localStorage =<< window
+  clear = liftEffect $ clear =<< localStorage =<< window

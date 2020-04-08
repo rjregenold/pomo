@@ -46,11 +46,14 @@ component =
         , initialize = Just Init
         }
     }
+
   where
+
   render :: forall slots. State -> H.ComponentHTML Action slots m
   render state =
     HH.div_
       [ HH.h1_ [ HH.text "Pomo" ]
+      , HH.h2_ [ HH.text timerTypeLabel ]
       , HH.h3_ [ HH.text timerLabel ]
       , HH.button
           [ HP.title buttonLabel
@@ -58,11 +61,19 @@ component =
           ]
           [ HH.text buttonLabel ]
       ]
+
     where
+
+    timerTypeLabel = case state.pomoSession.currentTimer.timerType of
+      PomoSession.Pomodoro -> "Pomodoro"
+      PomoSession.ShortBreak -> "Short Break"
+      PomoSession.LongBreak -> "Long Break"
+
+    timerLabel = Timer.render state.pomoSession.currentTimer.timer
+
     buttonLabel = case state.pomoSession.currentTimer.timer of
       Timer.NotRunning _ -> "Start"
       Timer.Running _ -> "Stop"
-    timerLabel = Timer.render state.pomoSession.currentTimer.timer
 
   handleAction :: forall slots. Action -> H.HalogenM State Action slots Void m Unit
   handleAction action = case action of

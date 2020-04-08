@@ -1,9 +1,11 @@
 module Pomo.Data.PomoCount 
   ( PomoCount
+  , pomoCountCodec
   ) where
 
 import Prelude
 
+import Data.Codec.Argonaut as CA
 import Data.Enum (class Enum, class BoundedEnum, Cardinality(..), fromEnum, toEnum)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
@@ -28,3 +30,6 @@ instance boundedEnumPomoCount :: BoundedEnum PomoCount where
     | n >= 0 && n <= 48 = Just (PomoCount n)
     | otherwise = Nothing
   fromEnum (PomoCount n) = n
+
+pomoCountCodec :: CA.JsonCodec PomoCount
+pomoCountCodec = CA.prismaticCodec toEnum fromEnum CA.int

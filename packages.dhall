@@ -123,6 +123,31 @@ let upstream =
 
 let overrides = {=}
 
-let additions = {=}
+let additions = 
+  { codec-argonaut =
+    { dependencies =
+        [ "argonaut-core"
+        , "codec"
+        , "generics-rep"
+        , "variant"
+        , "ordered-collections"
+        , "type-equality"
+        ]
+    , repo =
+        "https://github.com/garyb/purescript-codec-argonaut.git"
+    , version =
+        "v7.1.0"
+    }
+  , codec =
+    { dependencies =
+        [ "profunctor"
+        , "transformers"
+        ]
+    , repo =
+        "https://github.com/garyb/purescript-codec.git"
+    , version =
+        "v3.0.0"
+    }
+  }
 
 in  upstream // overrides // additions
