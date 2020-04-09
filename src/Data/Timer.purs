@@ -77,6 +77,11 @@ remainingMs = case _ of
 isComplete :: Timer -> Boolean
 isComplete = isNegDuration <<< remainingMs
 
+isRunning :: Timer -> Boolean
+isRunning = case _ of
+  NotRunning _ -> false
+  Running _ -> true
+
 -- | takes a timer and moves it along to the next tick
 tickM :: forall m. Now m => Timer -> m Timer
 tickM timer = do

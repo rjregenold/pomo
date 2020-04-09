@@ -19,18 +19,24 @@ derive instance genericPomoCount :: Generic PomoCount _
 derive newtype instance eqPomoCount :: Eq PomoCount
 derive newtype instance ordPomoCount :: Ord PomoCount
 
+maxPomoCount :: Int
+maxPomoCount = 120
+
 instance boundedPomoCount :: Bounded PomoCount where
   bottom = PomoCount 0
-  top = PomoCount 48
+  -- upper bound for the number of pomos possible per day if
+  -- pomo duration is 10 minutes and short/long breaks are 1
+  -- minute
+  top = PomoCount maxPomoCount
 
 instance enumPomoCount :: Enum PomoCount where
   succ = toEnum <<< (_ + 1) <<< fromEnum
   pred = toEnum <<< (_ - 1) <<< fromEnum
 
 instance boundedEnumPomoCount :: BoundedEnum PomoCount where
-  cardinality = Cardinality 49
+  cardinality = Cardinality (maxPomoCount + 1)
   toEnum n
-    | n >= 0 && n <= 48 = Just (PomoCount n)
+    | n >= 0 && n <= maxPomoCount = Just (PomoCount n)
     | otherwise = Nothing
   fromEnum (PomoCount n) = n
 

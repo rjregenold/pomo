@@ -1,4 +1,11 @@
-module Pomo.Data.Time where
+module Pomo.Data.Time 
+  ( durationCodec
+  , instantCodec
+  , instantDiff
+  , isPosDuration
+  , isNegDuration
+  , getTimeZoneOffset
+  ) where
   
 import Prelude
 
@@ -29,7 +36,7 @@ isPosDuration d =
 isNegDuration :: forall a. Duration a => a -> Boolean
 isNegDuration = not <<< isPosDuration
 
-foreign import jsGetTimeZoneOffset :: Effect Number
+foreign import _getTimeZoneOffset :: Effect Number
 
 getTimeZoneOffset :: Effect Minutes
-getTimeZoneOffset = map (negateDuration <<< Minutes) jsGetTimeZoneOffset
+getTimeZoneOffset = map (negateDuration <<< Minutes) _getTimeZoneOffset

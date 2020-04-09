@@ -111,7 +111,7 @@ component =
       st <- H.get
       { timerSettings } <- ask
       pomoSession <- PomoSession.tickSessionM timerSettings st.pomoSession
-      let done = Timer.isComplete pomoSession.currentTimer.timer
+      let done = not $ PomoSession.isTimerRunning pomoSession
       H.put st
         { pomoSession = pomoSession
         , forkId = if done then Nothing else st.forkId

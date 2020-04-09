@@ -83,11 +83,16 @@ tickSession timerSettings currentTime sess =
   case sess.currentTimer.timer of
     Timer.NotRunning _ -> sess
     Timer.Running t -> do
-      if Timer.isComplete timer
-      then nextSession (fromMaybe top (succ sess.completedPomos))
+      if isComplete
+      then nextSession nextPomoCount
       else sess { currentTimer = sess.currentTimer { timer = timer } }
   where
   timer = Timer.tick sess.currentTimer.timer currentTime
+  isComplete = Timer.isComplete timer
+  nextPomoCount = 
+    if isComplete && sess.currentTimer.timerType == Pomodoro
+    then fromMaybe top $ succ sess.completedPomos
+    else sess.completedPomos
   nextSession n = sess
     { currentTimer = nextTimer n sess.currentTimer.timerType timerSettings
     , completedPomos = n
@@ -125,6 +130,9 @@ stopTimer sess timerSettings = sess
     , timerType = Pomodoro
     }
   }
+
+isTimerRunning :: PomoSession -> Boolean
+isTimerRunning sess = Timer.isRunning sess.currentTimer.timer
 
 sessionKey :: DateTime -> String
 sessionKey dateTime = "pomoSession-" <> Format.format format dateTime
