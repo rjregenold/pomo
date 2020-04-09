@@ -7,6 +7,7 @@ import Data.Symbol (SProxy(..))
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
+import Pomo.Capability.LocalStorage (class LocalStorage)
 import Pomo.Capability.Now (class Now)
 import Pomo.Component.Utils (OpaqueSlot)
 import Pomo.Data.TimerSettings (TimerSettings)
@@ -25,6 +26,7 @@ component
    . MonadAff m
   => MonadAsk { timerSettings :: TimerSettings | r } m
   => Now m
+  => LocalStorage m
   => H.Component HH.HTML q {} Void m
 component =
   H.mkComponent

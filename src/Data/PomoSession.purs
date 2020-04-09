@@ -2,18 +2,19 @@ module Pomo.Data.PomoSession where
 
 import Prelude
 
-import Data.Argonaut (fromString, stringify)
+import Control.Bind (bindFlipped)
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Generic as CAG
 import Data.Codec.Argonaut.Record as CAR
 import Data.DateTime.Instant (Instant)
-import Data.Either (hush)
 import Data.Enum (fromEnum, succ)
 import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..))
 import Data.Time.Duration (Minutes(..))
 import Pomo.Capability.LocalStorage (class LocalStorage, getItem, setItem)
 import Pomo.Capability.Now (class Now, now)
+import Pomo.Data.Argonaut as A
 import Pomo.Data.PomoCount (PomoCount, pomoCountCodec)
 import Pomo.Data.Timer as Timer
 import Pomo.Data.TimerSettings (TimerSettings)
@@ -25,6 +26,8 @@ data TimerType
 
 derive instance eqTimerType :: Eq TimerType
 derive instance genericTimerType :: Generic TimerType _
+instance showTimerType :: Show TimerType where
+  show = genericShow
 
 timerTypeCodec :: CA.JsonCodec TimerType
 timerTypeCodec = CAG.nullarySum "TimerType"
@@ -123,14 +126,8 @@ stopTimer sess timerSettings = sess
 sessionKey :: String
 sessionKey = "pomoSession"
 
-saveTimer :: forall m. LocalStorage m => PomoSession -> m Unit
-saveTimer sess = setItem sessionKey (stringify $ CA.encode pomoSessionCodec sess)
+saveSession :: forall m. LocalStorage m => PomoSession -> m Unit
+saveSession sess = setItem sessionKey (A.encode pomoSessionCodec sess)
 
-restoreTimer :: forall m. LocalStorage m => m (Maybe PomoSession)
-restoreTimer = do
-  mVal <- getItem sessionKey
-  case mVal of
-    Nothing -> pure Nothing
-    Just val -> pure (dec val)
-  where
-  dec = hush <<< CA.decode pomoSessionCodec <<< fromString
+restoreSession :: forall m. LocalStorage m => m (Maybe PomoSession)
+restoreSession = pure <<< bindFlipped (A.decode pomoSessionCodec) =<< getItem sessionKey

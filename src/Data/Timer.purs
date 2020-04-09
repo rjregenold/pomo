@@ -8,6 +8,8 @@ import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut.Variant as CAV
 import Data.DateTime.Instant (Instant)
 import Data.Either (Either(..))
+import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show (genericShow)
 import Data.Int (floor, toNumber)
 import Data.Newtype (over, unwrap)
 import Data.Number.Format (fixed, toStringWith)
@@ -31,6 +33,10 @@ data Timer
   | Running RunningTimerState
 
 derive instance eqTimer :: Eq Timer
+derive instance genericTimer :: Generic Timer _
+
+instance showTimer :: Show Timer where
+  show = genericShow
 
 minutesCodec :: CA.JsonCodec Minutes
 minutesCodec = durationCodec

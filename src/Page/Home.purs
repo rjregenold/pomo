@@ -4,7 +4,7 @@ import Prelude
 
 import Control.Monad.Reader (class MonadAsk, ask)
 import Data.Foldable (for_, traverse_)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Time.Duration (Milliseconds(..))
 import Effect.Aff (delay)
 import Effect.Aff.Class (class MonadAff)
@@ -12,6 +12,7 @@ import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
+import Pomo.Capability.LocalStorage (class LocalStorage)
 import Pomo.Capability.Now (class Now, now)
 import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
@@ -33,6 +34,7 @@ component
    . MonadAff m
   => MonadAsk { timerSettings :: TimerSettings | r } m
   => Now m
+  => LocalStorage m
   => H.Component HH.HTML q {} Void m
 component = 
   H.mkComponent
@@ -79,26 +81,27 @@ component =
   handleAction action = case action of
     Init -> do
       { timerSettings } <- ask
-      H.modify_ _ { pomoSession = PomoSession.initPomoSession timerSettings.pomoDuration
-                  }
+      currentTime <- now
+      st <- H.get
+      mSession <- PomoSession.restoreSession
+      let mSession' = mSession >>= \s -> PomoSession.tickSession s timerSettings currentTime
+          pomoSession = fromMaybe (PomoSession.initPomoSession timerSettings.pomoDuration) mSession'
+          st' = st { pomoSession = pomoSession }
+      H.put st'
+      case pomoSession.currentTimer.timer of
+        -- start the timer if the restored timer is running
+        Timer.Running _ -> startSession st'
+        _ -> pure unit
     ToggleTimer -> do
       st <- H.get
       case st.pomoSession.currentTimer.timer of
-        Timer.NotRunning d -> do
-          currentTime <- now
-          let loop = do
-                H.liftAff (delay tickDelay)
-                handleAction Tick
-                loop
-          forkId <- H.fork loop
-          H.put st
-            { pomoSession = PomoSession.startTimer st.pomoSession currentTime
-            , forkId = Just forkId
-            }
+        Timer.NotRunning _ -> startSession st
         Timer.Running _ -> do
           { timerSettings } <- ask
+          let pomoSession = PomoSession.stopTimer st.pomoSession timerSettings
+          PomoSession.saveSession pomoSession
           H.put st
-            { pomoSession = PomoSession.stopTimer st.pomoSession timerSettings
+            { pomoSession = pomoSession
             , forkId = Nothing
             }
           killFork st.forkId
@@ -107,15 +110,31 @@ component =
       st <- H.get
       { timerSettings } <- ask
       mSess' <- PomoSession.tickSessionM st.pomoSession timerSettings
-      for_ mSess' $ \sess' -> do
-        let done = Timer.isComplete sess'.currentTimer.timer
+      for_ mSess' $ \pomoSession -> do
+        let done = Timer.isComplete pomoSession.currentTimer.timer
         H.put st
-          { pomoSession = sess'
+          { pomoSession = pomoSession
           , forkId = if done then Nothing else st.forkId
           }
-        when done $ killFork st.forkId
+        when done $ do
+           PomoSession.saveSession pomoSession
+           killFork st.forkId
 
     where
+
+    startSession st = do
+      currentTime <- now
+      let loop = do
+            H.liftAff (delay tickDelay)
+            handleAction Tick
+            loop
+      forkId <- H.fork loop
+      let pomoSession = PomoSession.startTimer st.pomoSession currentTime
+      PomoSession.saveSession pomoSession
+      H.put st
+        { pomoSession = pomoSession
+        , forkId = Just forkId
+        }
 
     tickDelay = Milliseconds 50.0
 

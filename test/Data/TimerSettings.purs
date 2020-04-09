@@ -16,7 +16,7 @@ import Type.Proxy (Proxy(..))
 main :: Effect Unit
 main = do
   log "checking that PomoCount is bounded enum"
-  checkBoundedEnum (Proxy :: Proxy tomoCount)
+  checkBoundedEnum (Proxy :: Proxy PomoCount)
 
   log "checking that DailyGoal is bounded enum"
   checkBoundedEnum (Proxy :: Proxy TimerSettings.DailyGoal)
