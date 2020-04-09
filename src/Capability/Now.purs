@@ -12,9 +12,11 @@ class Monad m <= Now m where
   nowDate :: m Date
   nowTime :: m Time
   nowDateTime :: m DateTime
+  nowDateTimeLocal :: m DateTime
 
 instance nowHalogenM :: Now m => Now (HalogenM st act slots msg m) where
   now = lift now
   nowDate = lift nowDate
   nowTime = lift nowTime
   nowDateTime = lift nowDateTime
+  nowDateTimeLocal = lift nowDateTimeLocal

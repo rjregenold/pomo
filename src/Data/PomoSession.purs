@@ -6,14 +6,17 @@ import Control.Bind (bindFlipped)
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Generic as CAG
 import Data.Codec.Argonaut.Record as CAR
+import Data.DateTime (DateTime)
 import Data.DateTime.Instant (Instant)
 import Data.Enum (fromEnum, succ)
+import Data.Formatter.DateTime as Format
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
-import Data.Maybe (Maybe(..))
+import Data.List as List
+import Data.Maybe (Maybe, fromMaybe)
 import Data.Time.Duration (Minutes(..))
 import Pomo.Capability.LocalStorage (class LocalStorage, getItem, setItem)
-import Pomo.Capability.Now (class Now, now)
+import Pomo.Capability.Now (class Now, now, nowDateTimeLocal)
 import Pomo.Data.Argonaut as A
 import Pomo.Data.PomoCount (PomoCount, pomoCountCodec)
 import Pomo.Data.Timer as Timer
@@ -70,19 +73,19 @@ initPomoSession d =
   , completedPomos: bottom
   }
 
-tickSessionM :: forall m. Now m => PomoSession -> TimerSettings -> m (Maybe PomoSession)
-tickSessionM sess timerSettings = do
+tickSessionM :: forall m. Now m => TimerSettings -> PomoSession -> m PomoSession
+tickSessionM timerSettings sess = do
   currentTime <- now
-  pure $ tickSession sess timerSettings currentTime
+  pure $ tickSession timerSettings currentTime sess
 
-tickSession :: PomoSession -> TimerSettings -> Instant -> Maybe PomoSession
-tickSession sess timerSettings currentTime =
+tickSession :: TimerSettings -> Instant -> PomoSession -> PomoSession
+tickSession timerSettings currentTime sess =
   case sess.currentTimer.timer of
-    Timer.NotRunning _ -> Just sess
+    Timer.NotRunning _ -> sess
     Timer.Running t -> do
       if Timer.isComplete timer
-      then map nextSession (succ sess.completedPomos)
-      else Just sess { currentTimer = sess.currentTimer { timer = timer } }
+      then nextSession (fromMaybe top (succ sess.completedPomos))
+      else sess { currentTimer = sess.currentTimer { timer = timer } }
   where
   timer = Timer.tick sess.currentTimer.timer currentTime
   nextSession n = sess
@@ -123,11 +126,30 @@ stopTimer sess timerSettings = sess
     }
   }
 
-sessionKey :: String
-sessionKey = "pomoSession"
+sessionKey :: DateTime -> String
+sessionKey dateTime = "pomoSession-" <> Format.format format dateTime
+  where
+  format = List.fromFoldable
+    [ Format.YearFull
+    , Format.MonthTwoDigits
+    , Format.DayOfMonthTwoDigits
+    ]
 
-saveSession :: forall m. LocalStorage m => PomoSession -> m Unit
-saveSession sess = setItem sessionKey (A.encode pomoSessionCodec sess)
+saveSession 
+  :: forall m
+   . LocalStorage m 
+  => Now m
+  => PomoSession 
+  -> m Unit
+saveSession sess = do
+  local <- nowDateTimeLocal 
+  setItem (sessionKey local) (A.encode pomoSessionCodec sess)
 
-restoreSession :: forall m. LocalStorage m => m (Maybe PomoSession)
-restoreSession = pure <<< bindFlipped (A.decode pomoSessionCodec) =<< getItem sessionKey
+restoreSession 
+  :: forall m
+   . LocalStorage m 
+  => Now m
+  => m (Maybe PomoSession)
+restoreSession = do
+  local <- nowDateTimeLocal
+  pure <<< bindFlipped (A.decode pomoSessionCodec) =<< getItem (sessionKey local)

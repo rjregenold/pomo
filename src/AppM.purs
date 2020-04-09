@@ -3,12 +3,15 @@ module Pomo.AppM where
 import Prelude
 
 import Control.Monad.Reader.Trans (class MonadAsk, ReaderT, asks, runReaderT)
+import Data.DateTime as DateTime
+import Data.Maybe (fromMaybe)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Now as Now
 import Pomo.Capability.LocalStorage (class LocalStorage)
 import Pomo.Capability.Now (class Now)
+import Pomo.Data.Time (getTimeZoneOffset)
 import Pomo.Env (Env)
 import Type.Equality (class TypeEquals, from)
 import Web.HTML (window)
@@ -36,6 +39,10 @@ instance nowAppM :: Now AppM where
   nowDate = liftEffect Now.nowDate
   nowTime = liftEffect Now.nowTime
   nowDateTime = liftEffect Now.nowDateTime
+  nowDateTimeLocal = liftEffect $ do
+     utc <- Now.nowDateTime
+     offset <- getTimeZoneOffset
+     pure $ fromMaybe bottom $ DateTime.adjust offset utc
 
 instance localStorageAppM :: LocalStorage AppM where
   getItem key = liftEffect $ getItem key =<< localStorage =<< window

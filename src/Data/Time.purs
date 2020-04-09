@@ -6,7 +6,8 @@ import Data.Codec.Argonaut as CA
 import Data.DateTime.Instant (Instant, instant, unInstant)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (over2, unwrap)
-import Data.Time.Duration (class Duration, Milliseconds(..), fromDuration, toDuration)
+import Data.Time.Duration (class Duration, Milliseconds(..), Minutes(..), fromDuration, negateDuration, toDuration)
+import Effect (Effect)
 
 durationCodec :: forall a. Duration a => CA.JsonCodec a
 durationCodec = CA.prismaticCodec (Just <<< toDuration <<< Milliseconds) (unwrap <<< fromDuration) CA.number
@@ -27,3 +28,8 @@ isPosDuration d =
 -- | returns true if the duration is less than or equal to zero milliseconds
 isNegDuration :: forall a. Duration a => a -> Boolean
 isNegDuration = not <<< isPosDuration
+
+foreign import jsGetTimeZoneOffset :: Effect Number
+
+getTimeZoneOffset :: Effect Minutes
+getTimeZoneOffset = map (negateDuration <<< Minutes) jsGetTimeZoneOffset

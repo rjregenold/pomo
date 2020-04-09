@@ -3,7 +3,7 @@ module Pomo.Page.Home where
 import Prelude
 
 import Control.Monad.Reader (class MonadAsk, ask)
-import Data.Foldable (for_, traverse_)
+import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Time.Duration (Milliseconds(..))
 import Effect.Aff (delay)
@@ -83,15 +83,16 @@ component =
       { timerSettings } <- ask
       currentTime <- now
       st <- H.get
-      mSession <- PomoSession.restoreSession
-      let mSession' = mSession >>= \s -> PomoSession.tickSession s timerSettings currentTime
-          pomoSession = fromMaybe (PomoSession.initPomoSession timerSettings.pomoDuration) mSession'
+      mExistingSession <- map (map $ PomoSession.tickSession timerSettings currentTime) PomoSession.restoreSession
+      let initSession = PomoSession.initPomoSession timerSettings.pomoDuration
+          pomoSession = fromMaybe initSession mExistingSession
           st' = st { pomoSession = pomoSession }
       H.put st'
       case pomoSession.currentTimer.timer of
         -- start the timer if the restored timer is running
         Timer.Running _ -> startSession st'
         _ -> pure unit
+
     ToggleTimer -> do
       st <- H.get
       case st.pomoSession.currentTimer.timer of
@@ -109,16 +110,15 @@ component =
     Tick -> do
       st <- H.get
       { timerSettings } <- ask
-      mSess' <- PomoSession.tickSessionM st.pomoSession timerSettings
-      for_ mSess' $ \pomoSession -> do
-        let done = Timer.isComplete pomoSession.currentTimer.timer
-        H.put st
-          { pomoSession = pomoSession
-          , forkId = if done then Nothing else st.forkId
-          }
-        when done $ do
-           PomoSession.saveSession pomoSession
-           killFork st.forkId
+      pomoSession <- PomoSession.tickSessionM timerSettings st.pomoSession
+      let done = Timer.isComplete pomoSession.currentTimer.timer
+      H.put st
+        { pomoSession = pomoSession
+        , forkId = if done then Nothing else st.forkId
+        }
+      when done $ do
+         PomoSession.saveSession pomoSession
+         killFork st.forkId
 
     where
 
