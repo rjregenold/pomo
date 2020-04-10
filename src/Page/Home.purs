@@ -3,17 +3,22 @@ module Pomo.Page.Home where
 import Prelude
 
 import Control.Monad.Reader (class MonadAsk, ask)
+import Data.Either (either)
 import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Time.Duration (Milliseconds(..))
-import Effect.Aff (delay)
+import Effect.Aff (attempt, delay)
 import Effect.Aff.Class (class MonadAff)
+import Effect.Class (liftEffect)
+import Effect.Console (log)
+import Effect.Exception as Exception
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Pomo.Capability.LocalStorage (class LocalStorage)
 import Pomo.Capability.Now (class Now, now)
+import Pomo.Data.Notification as Notification
 import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
 import Pomo.Data.Timer as Timer
@@ -28,6 +33,7 @@ data Action
   = Init
   | ToggleTimer
   | Tick
+  | RequestNotificationPermissions
 
 component 
   :: forall q r m
@@ -62,6 +68,11 @@ component =
           , HE.onClick \_ -> Just ToggleTimer 
           ]
           [ HH.text buttonLabel ]
+      , HH.button 
+          [ HP.title "Enable Desktop Notifications"
+          , HE.onClick \_ -> Just RequestNotificationPermissions
+          ]
+          [ HH.text "Enable Desktop Notifications" ]
       ]
 
     where
@@ -119,6 +130,16 @@ component =
       when done $ do
          PomoSession.saveSession pomoSession
          killFork st.forkId
+
+    RequestNotificationPermissions -> do
+      permission <- H.liftAff $ attempt Notification.requestPermission
+      either
+        (liftEffect <<< log <<< Exception.message)
+        (liftEffect <<< case _ of
+          Notification.Granted -> Notification.createNotification "Pomodoro" "Time to work"
+          _ -> pure unit
+          )
+        permission
 
     where
 
