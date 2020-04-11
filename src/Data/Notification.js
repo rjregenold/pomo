@@ -10,6 +10,20 @@ function checkNotificationPromise() {
   return true;
 }
 
+function areNotificationsSupported() {
+  return ('Notification' in window);
+}
+
+exports._areNotificationsSupported = function() {
+  return areNotificationsSupported;
+};
+
+exports._checkPermission = function(toPermission) {
+  return function() {
+    return toPermission(Notification.permission);
+  };
+};
+
 exports._requestPermission = function(toPermission) {
   return function(onError, onSuccess) {
     function handlePermission(permissionStr) {
@@ -21,7 +35,7 @@ exports._requestPermission = function(toPermission) {
       onSuccess(toPermission(permissionStr));
     }
 
-    if (!('Notification' in window)) {
+    if (!areNotificationsSupported()) {
       onError(new Error('This browser does not support notifications.'));
     } else {
       if (checkNotificationPromise()) {
@@ -38,5 +52,7 @@ exports._requestPermission = function(toPermission) {
 };
 
 exports._createNotification = function(title, body) {
-  return new Notification(title, { body });
+  return function() {
+    return new Notification(title, { body });
+  };
 };

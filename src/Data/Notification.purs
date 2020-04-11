@@ -2,7 +2,7 @@ module Pomo.Data.Notification where
 
 import Prelude
 
-import Data.Function.Uncurried (Fn1, Fn2, runFn1, runFn2)
+import Data.Function.Uncurried (Fn2, runFn2)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe(Maybe(..))
@@ -29,14 +29,21 @@ toPermission permission = case permission of
   "default" -> Just Default
   _ -> Nothing
 
-foreign import _requestPermission 
-  :: Fn1
-      (String -> Maybe Permission) 
-      (AC.EffectFnAff (Maybe Permission))
+foreign import _areNotificationsSupported :: Effect Boolean
+
+areNotificationsSupported :: Effect Boolean
+areNotificationsSupported = _areNotificationsSupported
+
+foreign import _checkPermission :: (String -> Maybe Permission) -> Effect (Maybe Permission)
+
+checkPermission :: Effect (Maybe Permission)
+checkPermission = _checkPermission toPermission
+
+foreign import _requestPermission :: (String -> Maybe Permission) -> AC.EffectFnAff (Maybe Permission)
 
 requestPermission :: Aff Permission
 requestPermission =
-  AC.fromEffectFnAff (runFn1 _requestPermission toPermission) >>= case _ of
+  AC.fromEffectFnAff (_requestPermission toPermission) >>= case _ of
     Just permission -> pure permission
     Nothing -> A.throwError (A.error "invalid permission type")
 
