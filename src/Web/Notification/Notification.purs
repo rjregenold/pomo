@@ -1,10 +1,9 @@
-module Pomo.Data.Notification where
+module Pomo.Web.Notification.Notification where
 
 import Prelude
 
 import Data.Function.Uncurried (Fn2, runFn2)
-import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Maybe(Maybe(..))
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -12,15 +11,13 @@ import Effect.Aff as A
 import Effect.Aff.Compat as AC
 
 data Permission
-  = Granted
+  = Default
   | Denied
-  | Default
+  | Granted
 
 derive instance eqPermission :: Eq Permission
-derive instance genericPermission :: Generic Permission _
 
-instance showPermission :: Show Permission where
-  show = genericShow
+foreign import data Notification :: Type
 
 toPermission :: String -> Maybe Permission
 toPermission permission = case permission of
@@ -47,7 +44,17 @@ requestPermission =
     Just permission -> pure permission
     Nothing -> A.throwError (A.error "invalid permission type")
 
-foreign import _createNotification :: Fn2 String String (Effect Unit)
+foreign import _createNotification :: Fn2 String String (Effect Notification)
 
-createNotification :: String -> String -> Effect Unit
-createNotification title body = runFn2 _createNotification title body
+newtype Title = Title String
+
+derive instance eqTitle :: Eq Title
+derive instance newtypeTitle :: Newtype Title _
+
+newtype Body = Body String
+
+derive instance eqBody :: Eq Body
+derive instance newtypeBody :: Newtype Body _
+
+createNotification :: Title -> Body -> Effect Notification
+createNotification title body = runFn2 _createNotification (unwrap title) (unwrap body)

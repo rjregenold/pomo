@@ -6,13 +6,15 @@ import Control.Monad.Reader.Trans (class MonadAsk, ReaderT, asks, runReaderT)
 import Data.DateTime as DateTime
 import Data.Maybe (fromMaybe)
 import Effect.Aff (Aff)
-import Effect.Aff.Class (class MonadAff)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Now as Now
 import Pomo.Capability.LocalStorage (class LocalStorage)
+import Pomo.Capability.Notifications (class Notifications)
 import Pomo.Capability.Now (class Now)
 import Pomo.Data.Time (getTimeZoneOffset)
 import Pomo.Env (Env)
+import Pomo.Web.Notification.Notification as Notification
 import Type.Equality (class TypeEquals, from)
 import Web.HTML (window)
 import Web.HTML.Window (localStorage)
@@ -49,3 +51,9 @@ instance localStorageAppM :: LocalStorage AppM where
   setItem key val = liftEffect $ setItem key val =<< localStorage =<< window
   removeItem key = liftEffect $ removeItem key =<< localStorage =<< window
   clear = liftEffect $ clear =<< localStorage =<< window
+
+instance notificationsAppM :: Notifications AppM where
+  areNotificationsSupported = liftEffect Notification.areNotificationsSupported
+  checkPermission = liftEffect Notification.checkPermission
+  requestPermission = liftAff Notification.requestPermission
+  createNotification title = liftEffect <<< Notification.createNotification title

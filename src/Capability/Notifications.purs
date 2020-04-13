@@ -2,5 +2,19 @@ module Pomo.Capability.Notifications where
 
 import Prelude
 
+import Control.Monad.Trans.Class (lift)
+import Data.Maybe(Maybe)
+import Pomo.Web.Notification.Notification as Notification
+import Halogen (HalogenM)
+
 class Monad m <= Notifications m where
-  requestPermission :: m Unit
+  areNotificationsSupported :: m Boolean
+  checkPermission :: m (Maybe Notification.Permission)
+  requestPermission :: m Notification.Permission
+  createNotification :: Notification.Title -> Notification.Body -> m Notification.Notification
+
+instance notificationsHalogenM :: Notifications m => Notifications (HalogenM st act slots msg m) where
+  areNotificationsSupported = lift areNotificationsSupported
+  checkPermission = lift checkPermission
+  requestPermission = lift requestPermission
+  createNotification title = lift <<< createNotification title

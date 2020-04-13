@@ -2,28 +2,27 @@ module Pomo.Page.Home where
 
 import Prelude
 
-import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (class MonadAsk, ask)
-import Data.Either (either)
-import Data.Foldable (for_)
+import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Newtype (wrap)
 import Data.Time.Duration (Milliseconds(..))
-import Effect.Aff (attempt, delay)
+import Effect.Aff (delay)
 import Effect.Aff.Class (class MonadAff)
-import Effect.Class (liftEffect)
-import Effect.Console (log)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Pomo.Capability.LocalStorage (class LocalStorage)
+import Pomo.Capability.Notifications (class Notifications)
+import Pomo.Capability.Notifications as Notifications
 import Pomo.Capability.Now (class Now, now)
 import Pomo.Component.HTML.Utils (whenElem)
-import Pomo.Data.Notification as Notification
 import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
 import Pomo.Data.Timer as Timer
 import Pomo.Data.TimerSettings (TimerSettings)
+import Pomo.Web.Notification.Notification as Notification
 
 type State =
   { pomoSession :: PomoSession
@@ -51,6 +50,7 @@ component
   => MonadAsk { timerSettings :: TimerSettings | r } m
   => Now m
   => LocalStorage m
+  => Notifications m
   => H.Component HH.HTML q {} Void m
 component = 
   H.mkComponent
@@ -110,9 +110,9 @@ component =
       { timerSettings } <- ask
       currentTime <- now
       st <- H.get
-      noteSupport <- liftEffect Notification.areNotificationsSupported
+      noteSupport <- Notifications.areNotificationsSupported
       mPermissions <- if noteSupport
-                      then liftEffect Notification.checkPermission
+                      then Notifications.checkPermission
                       else pure Nothing
       mExistingSession <- map (map $ PomoSession.tickSession timerSettings currentTime) PomoSession.restoreSession
       let initSession = PomoSession.initPomoSession timerSettings.pomoDuration
@@ -156,17 +156,14 @@ component =
         }
       when done $ do
          PomoSession.saveSession pomoSession
-         liftEffect $ Notification.createNotification "Timer Complete" "The timer is complete."
+         _ <- Notifications.createNotification (wrap "Timer Complete") (wrap "The timer is complete.")
          killFork st.forkId
 
     RequestNotificationPermissions -> do
-      permission <- H.liftAff $ attempt Notification.requestPermission
-      let p = either 
-                (const HaventAsked) 
-                (case _ of
-                  Notification.Granted -> Granted
-                  _ -> Denied) 
-              permission
+      permission <- Notifications.requestPermission
+      let p = case permission of
+                Notification.Granted -> Granted
+                _ -> Denied
       H.modify_ _ { notificationPermission = p }
 
     where
@@ -187,7 +184,4 @@ component =
 
     tickDelay = Milliseconds 50.0
 
-    killFork fid = for_ fid \fid' -> do
-      liftEffect $ log $ "killing fork"
-      H.kill fid'
-      liftEffect $ log $ "killed fork"
+    killFork = traverse_ H.kill

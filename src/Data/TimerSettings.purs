@@ -6,8 +6,8 @@ module Pomo.Data.TimerSettings
 
 import Prelude
 
-import Data.Enum (class Enum, class BoundedEnum, Cardinality(..), fromEnum, toEnum)
-import Data.Maybe (Maybe(..))
+import Data.Enum (toEnum)
+import Data.Maybe (Maybe)
 import Data.Time.Duration (Minutes(..))
 import Pomo.Data.PomoCount (PomoCount)
 
