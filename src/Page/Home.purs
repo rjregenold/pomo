@@ -5,7 +5,7 @@ import Prelude
 import Control.Monad.Reader (class MonadAsk, ask)
 import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Time.Duration (Milliseconds(..))
 import Effect.Aff (delay)
 import Effect.Aff.Class (class MonadAff)
@@ -26,9 +26,9 @@ import Pomo.Web.Notification.Notification as Notification
 
 type State =
   { pomoSession :: PomoSession
-  , forkId :: Maybe H.ForkId
   , areNotificationsSupported :: Boolean
   , notificationPermission :: NotificationPermission
+  , currentNotification :: Maybe Notification.Notification
   }
 
 data Action
@@ -38,7 +38,7 @@ data Action
   | RequestNotificationPermissions
 
 data NotificationPermission
-  = HaventAsked
+  = NotAsked
   | Granted
   | Denied
 
@@ -56,9 +56,9 @@ component =
   H.mkComponent
     { initialState: \_ ->
         { pomoSession: PomoSession.defaultPomoSession
-        , forkId: Nothing
         , areNotificationsSupported: false
-        , notificationPermission: HaventAsked
+        , notificationPermission: NotAsked
+        , currentNotification: Nothing
         }
     , render
     , eval: H.mkEval $ H.defaultEval
@@ -82,10 +82,11 @@ component =
           [ HH.text buttonLabel ]
       , whenElem showEnableNotificationsBtn $ \_ ->
           HH.button 
-              [ HP.title "Enable Desktop Notifications"
+              [ HP.title notificationsLabel
               , HE.onClick \_ -> Just RequestNotificationPermissions
               ]
-              [ HH.text "Enable Desktop Notifications" ]
+              [ HH.text notificationsLabel ]
+      , HH.h4_ [ HH.text pomosCompletedLabel ]
       ]
 
     where
@@ -101,8 +102,13 @@ component =
       Timer.NotRunning _ -> "Start"
       Timer.Running _ -> "Stop"
 
+    notificationsLabel = "Enable Desktop Notifications"
+
     showEnableNotificationsBtn =
-      state.areNotificationsSupported && state.notificationPermission == HaventAsked
+      state.areNotificationsSupported && state.notificationPermission == NotAsked
+
+    pomosCompletedLabel =
+      "Pomodoros Completed Today: " <> show (unwrap state.pomoSession.completedPomos)
 
   handleAction :: forall slots. Action -> H.HalogenM State Action slots Void m Unit
   handleAction action = case action of
@@ -120,16 +126,14 @@ component =
           st' = st 
                 { pomoSession = pomoSession 
                 , areNotificationsSupported = noteSupport
-                , notificationPermission = maybe HaventAsked (case _ of
+                , notificationPermission = maybe NotAsked (case _ of
                                                                 Notification.Granted -> Granted
                                                                 Notification.Denied -> Denied
-                                                                Notification.Default -> HaventAsked) mPermissions
+                                                                Notification.Default -> NotAsked) mPermissions
                 }
       H.put st'
-      case pomoSession.currentTimer.timer of
-        -- start the timer if the restored timer is running
-        Timer.Running _ -> startSession st'
-        _ -> pure unit
+      -- start the timer if the restored timer is running
+      when (PomoSession.isTimerRunning pomoSession) (startSession st')
 
     ToggleTimer -> do
       st <- H.get
@@ -139,25 +143,16 @@ component =
           { timerSettings } <- ask
           let pomoSession = PomoSession.stopTimer st.pomoSession timerSettings
           PomoSession.saveSession pomoSession
-          H.put st
-            { pomoSession = pomoSession
-            , forkId = Nothing
-            }
-          killFork st.forkId
+          H.put st { pomoSession = pomoSession }
 
     Tick -> do
       st <- H.get
       { timerSettings } <- ask
       pomoSession <- PomoSession.tickSessionM timerSettings st.pomoSession
-      let done = not $ PomoSession.isTimerRunning pomoSession
-      H.put st
-        { pomoSession = pomoSession
-        , forkId = if done then Nothing else st.forkId
-        }
-      when done $ do
-         PomoSession.saveSession pomoSession
-         _ <- Notifications.createNotification (wrap "Timer Complete") (wrap "The timer is complete.")
-         killFork st.forkId
+      H.put st { pomoSession = pomoSession }
+      when (not $ PomoSession.isTimerRunning pomoSession) do
+        PomoSession.saveSession pomoSession
+        showNotification st
 
     RequestNotificationPermissions -> do
       permission <- Notifications.requestPermission
@@ -168,20 +163,36 @@ component =
 
     where
 
+    areNotificationsEnabled st =
+      st.areNotificationsSupported && st.notificationPermission == Granted
+
+    showNotification st =
+      when (areNotificationsEnabled st) do
+        let noteData = notificationData st.pomoSession
+        currentNotification <- Notifications.createNotification noteData.title noteData.body
+        H.modify_ _ { currentNotification = Just currentNotification }
+
     startSession st = do
       currentTime <- now
+      traverse_ Notifications.closeNotification st.currentNotification
       let loop = do
             H.liftAff (delay tickDelay)
-            handleAction Tick
-            loop
-      forkId <- H.fork loop
+            loopSt <- H.get
+            when (PomoSession.isTimerRunning loopSt.pomoSession) do
+              handleAction Tick
+              loop
+      _ <- H.fork loop
       let pomoSession = PomoSession.startTimer st.pomoSession currentTime
       PomoSession.saveSession pomoSession
       H.put st
         { pomoSession = pomoSession
-        , forkId = Just forkId
+        , currentNotification = Nothing
         }
 
-    tickDelay = Milliseconds 50.0
+    tickDelay = Milliseconds 250.0
 
-    killFork = traverse_ H.kill
+    notificationData pomoSession =
+      case pomoSession.currentTimer.timerType of
+        PomoSession.Pomodoro -> { title: wrap "Pomodoro Complete", body: wrap "The pomodoro is complete." }
+        PomoSession.ShortBreak -> { title: wrap "Short Break Complete", body: wrap "The short break is complete." }
+        PomoSession.LongBreak -> { title: wrap "Long Break Complete", body: wrap "The long break is complete." }

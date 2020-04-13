@@ -12,9 +12,11 @@ class Monad m <= Notifications m where
   checkPermission :: m (Maybe Notification.Permission)
   requestPermission :: m Notification.Permission
   createNotification :: Notification.Title -> Notification.Body -> m Notification.Notification
+  closeNotification :: Notification.Notification -> m Unit
 
 instance notificationsHalogenM :: Notifications m => Notifications (HalogenM st act slots msg m) where
   areNotificationsSupported = lift areNotificationsSupported
   checkPermission = lift checkPermission
   requestPermission = lift requestPermission
   createNotification title = lift <<< createNotification title
+  closeNotification = lift <<< closeNotification

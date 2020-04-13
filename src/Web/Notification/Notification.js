@@ -56,3 +56,9 @@ exports._createNotification = function(title, body) {
     return new Notification(title, { body });
   };
 };
+
+exports._closeNotification = function(notification) {
+  return function() {
+    if (notification) notification.close();
+  };
+};

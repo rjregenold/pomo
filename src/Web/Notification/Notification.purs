@@ -58,3 +58,8 @@ derive instance newtypeBody :: Newtype Body _
 
 createNotification :: Title -> Body -> Effect Notification
 createNotification title body = runFn2 _createNotification (unwrap title) (unwrap body)
+
+foreign import _closeNotification :: Notification -> Effect Unit
+
+closeNotification :: Notification -> Effect Unit
+closeNotification = _closeNotification

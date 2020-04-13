@@ -57,3 +57,4 @@ instance notificationsAppM :: Notifications AppM where
   checkPermission = liftEffect Notification.checkPermission
   requestPermission = liftAff Notification.requestPermission
   createNotification title = liftEffect <<< Notification.createNotification title
+  closeNotification = liftEffect <<< Notification.closeNotification
