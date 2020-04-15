@@ -7,11 +7,12 @@ import Data.Symbol (SProxy(..))
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
+import Pomo.Env (WithEnv)
 import Pomo.Capability.LocalStorage (class LocalStorage)
 import Pomo.Capability.Notifications (class Notifications)
 import Pomo.Capability.Now (class Now)
+import Pomo.Capability.PlaySounds (class PlaySounds)
 import Pomo.Component.Utils (OpaqueSlot)
-import Pomo.Data.TimerSettings (TimerSettings)
 import Pomo.Page.Home as Home
 
 type State =
@@ -25,10 +26,11 @@ type ChildSlots =
 component 
   :: forall q m r
    . MonadAff m
-  => MonadAsk { timerSettings :: TimerSettings | r } m
-  => Now m
+  => MonadAsk { | WithEnv r } m
   => LocalStorage m
   => Notifications m
+  => Now m
+  => PlaySounds m
   => H.Component HH.HTML q {} Void m
 component =
   H.mkComponent

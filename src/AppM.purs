@@ -12,8 +12,10 @@ import Effect.Now as Now
 import Pomo.Capability.LocalStorage (class LocalStorage)
 import Pomo.Capability.Notifications (class Notifications)
 import Pomo.Capability.Now (class Now)
+import Pomo.Capability.PlaySounds (class PlaySounds)
 import Pomo.Data.Time (getTimeZoneOffset)
 import Pomo.Env (Env)
+import Pomo.Web.Audio.Audio as Audio
 import Pomo.Web.Notification.Notification as Notification
 import Type.Equality (class TypeEquals, from)
 import Web.HTML (window)
@@ -58,3 +60,6 @@ instance notificationsAppM :: Notifications AppM where
   requestPermission = liftAff Notification.requestPermission
   createNotification title = liftEffect <<< Notification.createNotification title
   closeNotification = liftEffect <<< Notification.closeNotification
+
+instance playSoundsAppM :: PlaySounds AppM where
+  playSound url = liftEffect (Audio.play =<< Audio.create url)

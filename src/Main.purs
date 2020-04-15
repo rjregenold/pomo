@@ -13,11 +13,12 @@ import Pomo.AppM (runAppM)
 import Pomo.Component.Router as Router
 import Pomo.Data.RunEnv as RunEnv
 import Pomo.Data.TimerSettings (defaultTimerSettings)
+import Pomo.Data.AssetUrls (AssetUrls)
 
-main :: Effect Unit
-main = HA.runHalogenAff do
+main :: AssetUrls -> Effect Unit
+main assetUrls = HA.runHalogenAff do
   body <- HA.awaitBody
   timerSettings <- maybe (throwError (error "invalid timer settings")) pure defaultTimerSettings
-  let env = { runEnv: RunEnv.Dev, timerSettings }
+  let env = { runEnv: RunEnv.Dev, assetUrls,  timerSettings }
       rootComponent = H.hoist (runAppM env) Router.component
   runUI rootComponent {} body

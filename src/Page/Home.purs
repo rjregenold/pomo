@@ -17,11 +17,12 @@ import Pomo.Capability.LocalStorage (class LocalStorage)
 import Pomo.Capability.Notifications (class Notifications)
 import Pomo.Capability.Notifications as Notifications
 import Pomo.Capability.Now (class Now, now)
+import Pomo.Capability.PlaySounds (class PlaySounds, playSound)
 import Pomo.Component.HTML.Utils (whenElem)
 import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
 import Pomo.Data.Timer as Timer
-import Pomo.Data.TimerSettings (TimerSettings)
+import Pomo.Env (WithEnv)
 import Pomo.Web.Notification.Notification as Notification
 
 type State =
@@ -29,6 +30,7 @@ type State =
   , areNotificationsSupported :: Boolean
   , notificationPermission :: NotificationPermission
   , currentNotification :: Maybe Notification.Notification
+  , alarmUrl :: Maybe String
   }
 
 data Action
@@ -47,10 +49,11 @@ derive instance eqNotificationPermission :: Eq NotificationPermission
 component 
   :: forall q r m
    . MonadAff m
-  => MonadAsk { timerSettings :: TimerSettings | r } m
-  => Now m
+  => MonadAsk { | WithEnv r } m
   => LocalStorage m
   => Notifications m
+  => Now m
+  => PlaySounds m
   => H.Component HH.HTML q {} Void m
 component = 
   H.mkComponent
@@ -59,6 +62,7 @@ component =
         , areNotificationsSupported: false
         , notificationPermission: NotAsked
         , currentNotification: Nothing
+        , alarmUrl: Nothing
         }
     , render
     , eval: H.mkEval $ H.defaultEval
@@ -113,7 +117,7 @@ component =
   handleAction :: forall slots. Action -> H.HalogenM State Action slots Void m Unit
   handleAction action = case action of
     Init -> do
-      { timerSettings } <- ask
+      { assetUrls, timerSettings } <- ask
       currentTime <- now
       st <- H.get
       noteSupport <- Notifications.areNotificationsSupported
@@ -130,6 +134,7 @@ component =
                                                                 Notification.Granted -> Granted
                                                                 Notification.Denied -> Denied
                                                                 Notification.Default -> NotAsked) mPermissions
+                , alarmUrl = Just assetUrls.audio.ding
                 }
       H.put st'
       -- start the timer if the restored timer is running
@@ -153,6 +158,7 @@ component =
       when (not $ PomoSession.isTimerRunning pomoSession) do
         PomoSession.saveSession pomoSession
         showNotification st
+        playAlarm st
 
     RequestNotificationPermissions -> do
       permission <- Notifications.requestPermission
@@ -171,6 +177,9 @@ component =
         let noteData = notificationData st.pomoSession
         currentNotification <- Notifications.createNotification noteData.title noteData.body
         H.modify_ _ { currentNotification = Just currentNotification }
+
+    playAlarm st =
+      traverse_ playSound st.alarmUrl
 
     startSession st = do
       currentTime <- now
