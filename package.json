@@ -9,11 +9,11 @@
   "scripts": {
     "postinstall": "spago install",
     "clean": "rm -rf node_modules output .spago dist/* *.lock",
-    "dev": "parcel assets/index.html",
+    "dev": "parcel build/dev/index.html",
     "watch": "spago build --watch",
     "test": "spago -x test.dhall test",
     "testwatch": "spago -x test.dhall test --watch",
-    "bundle": "rm -rf dist/* && spago bundle-app --main Main --to dist/app.js && parcel build assets/index.html"
+    "bundle": "rm -rf dist/* && spago bundle-module --main Main --to dist/app.js && parcel build build/deploy/index.html"
   },
   "author": "RJ Regenold",
   "license": "MIT",
