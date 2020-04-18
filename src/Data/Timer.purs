@@ -82,6 +82,11 @@ isRunning = case _ of
   NotRunning _ -> false
   Running _ -> true
 
+timerDuration :: Timer -> Minutes
+timerDuration = case _ of
+  NotRunning d -> d
+  Running ts -> ts.duration
+
 -- | takes a timer and moves it along to the next tick
 tickM :: forall m. Now m => Timer -> m Timer
 tickM timer = do

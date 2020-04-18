@@ -1,0 +1,52 @@
+html,
+body {
+  font-family: 'Baloo Tammudu 2', cursive;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+h1,h2,h3,h4,h5,h6 {
+  margin: 0;
+}
+
+.app-home {
+  height: 100%;
+  position: relative;
+}
+
+.app-home__content {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+}
+
+.app-home__item {
+  text-align: center;
+}
+
+.timer-details__canvas {
+  left: 0;
+  position: absolute;
+  top: 0;
+  z-index: -1;
+}
+
+.timer-details__labels {
+  text-align: center;
+}
+
+.timer-details__type {
+  font-weight: bold;
+  font-size: 3em;
+}
+
+.timer-details__timer {
+  font-size: 2em;
+}
+
+.timer-details__completed {
+  font-size: 1.5em;
+}

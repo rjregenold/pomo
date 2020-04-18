@@ -2,13 +2,16 @@ module Pomo.Page.Home where
 
 import Prelude
 
+import Control.Apply (lift2)
 import Control.Monad.Reader (class MonadAsk, ask)
 import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap)
+import Data.Symbol (SProxy(..))
 import Data.Time.Duration (Milliseconds(..))
 import Effect.Aff (delay)
 import Effect.Aff.Class (class MonadAff)
+import Effect.Class (liftEffect)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
@@ -18,15 +21,24 @@ import Pomo.Capability.Notifications (class Notifications)
 import Pomo.Capability.Notifications as Notifications
 import Pomo.Capability.Now (class Now, now)
 import Pomo.Capability.PlaySounds (class PlaySounds, playSound)
-import Pomo.Component.HTML.Utils (whenElem)
+import Pomo.Component.PomoSession as PomoSessionComponent
+import Pomo.Component.HTML.Utils (maybeElem, whenElem)
+import Pomo.Component.Utils (OpaqueSlot)
 import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
 import Pomo.Data.Timer as Timer
+import Pomo.Data.TimerSettings (TimerSettings)
 import Pomo.Env (WithEnv)
 import Pomo.Web.Notification.Notification as Notification
+import Web.HTML as HTML
+import Web.HTML.HTMLDocument as HTMLDocument
+import Web.HTML.HTMLElement (HTMLElement)
+import Web.HTML.Window as Window
 
 type State =
-  { pomoSession :: PomoSession
+  { body :: Maybe HTMLElement
+  , timerSettings :: Maybe TimerSettings
+  , pomoSession :: PomoSession
   , areNotificationsSupported :: Boolean
   , notificationPermission :: NotificationPermission
   , currentNotification :: Maybe Notification.Notification
@@ -46,6 +58,10 @@ data NotificationPermission
 
 derive instance eqNotificationPermission :: Eq NotificationPermission
 
+type ChildSlots =
+  ( pomoSession :: OpaqueSlot Unit
+  )
+
 component 
   :: forall q r m
    . MonadAff m
@@ -58,7 +74,9 @@ component
 component = 
   H.mkComponent
     { initialState: \_ ->
-        { pomoSession: PomoSession.defaultPomoSession
+        { body: Nothing
+        , timerSettings: Nothing
+        , pomoSession: PomoSession.defaultPomoSession
         , areNotificationsSupported: false
         , notificationPermission: NotAsked
         , currentNotification: Nothing
@@ -73,34 +91,35 @@ component =
 
   where
 
-  render :: forall slots. State -> H.ComponentHTML Action slots m
+  render :: State -> H.ComponentHTML Action ChildSlots m
   render state =
-    HH.div_
-      [ HH.h1_ [ HH.text "Pomo" ]
-      , HH.h2_ [ HH.text timerTypeLabel ]
-      , HH.h3_ [ HH.text timerLabel ]
-      , HH.button
-          [ HP.title buttonLabel
-          , HE.onClick \_ -> Just ToggleTimer 
+    HH.div
+      [ HP.class_ (wrap "app-home")
+      ]
+      [ HH.div
+          [ HP.class_ (wrap "app-home__content")
           ]
-          [ HH.text buttonLabel ]
-      , whenElem showEnableNotificationsBtn $ \_ ->
-          HH.button 
-              [ HP.title notificationsLabel
-              , HE.onClick \_ -> Just RequestNotificationPermissions
+          [ maybeElem (lift2 (\body timerSettings -> { body, timerSettings }) state.body state.timerSettings) \{ body, timerSettings } ->
+              HH.slot (SProxy :: _ "pomoSession") unit PomoSessionComponent.component { containerEl: body, pomoSession: state.pomoSession, timerSettings } absurd
+          , HH.div
+              [ HP.class_ (wrap "app-home__item")
               ]
-              [ HH.text notificationsLabel ]
-      , HH.h4_ [ HH.text pomosCompletedLabel ]
+              [ HH.button
+                  [ HP.title buttonLabel
+                  , HE.onClick \_ -> Just ToggleTimer 
+                  ]
+                  [ HH.text buttonLabel ]
+              , whenElem showEnableNotificationsBtn $ \_ ->
+                  HH.button 
+                      [ HP.title notificationsLabel
+                      , HE.onClick \_ -> Just RequestNotificationPermissions
+                      ]
+                      [ HH.text notificationsLabel ]
+              ]
+          ]
       ]
 
     where
-
-    timerTypeLabel = case state.pomoSession.currentTimer.timerType of
-      PomoSession.Pomodoro -> "Pomodoro"
-      PomoSession.ShortBreak -> "Short Break"
-      PomoSession.LongBreak -> "Long Break"
-
-    timerLabel = Timer.render state.pomoSession.currentTimer.timer
 
     buttonLabel = case state.pomoSession.currentTimer.timer of
       Timer.NotRunning _ -> "Start"
@@ -111,12 +130,10 @@ component =
     showEnableNotificationsBtn =
       state.areNotificationsSupported && state.notificationPermission == NotAsked
 
-    pomosCompletedLabel =
-      "Pomodoros Completed Today: " <> show (unwrap state.pomoSession.completedPomos)
-
   handleAction :: forall slots. Action -> H.HalogenM State Action slots Void m Unit
   handleAction action = case action of
     Init -> do
+      mBody <- liftEffect getBody
       { assetUrls, timerSettings } <- ask
       currentTime <- now
       st <- H.get
@@ -128,7 +145,9 @@ component =
       let initSession = PomoSession.initPomoSession timerSettings.pomoDuration
           pomoSession = fromMaybe initSession mExistingSession
           st' = st 
-                { pomoSession = pomoSession 
+                { body = mBody
+                , timerSettings = Just timerSettings
+                , pomoSession = pomoSession 
                 , areNotificationsSupported = noteSupport
                 , notificationPermission = maybe NotAsked (case _ of
                                                                 Notification.Granted -> Granted
@@ -168,6 +187,11 @@ component =
       H.modify_ _ { notificationPermission = p }
 
     where
+
+    getBody = do
+      window <- HTML.window
+      doc <- Window.document window
+      HTMLDocument.body doc
 
     areNotificationsEnabled st =
       st.areNotificationsSupported && st.notificationPermission == Granted

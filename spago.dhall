@@ -2,16 +2,18 @@
 Welcome to a Spago project!
 You can edit this file as you like.
 -}
-{ name = "my-project"
+{ name = "pomo"
 , dependencies =
   [ "argonaut"
   , "argonaut-generic"
+  , "canvas"
   , "codec-argonaut"
   , "console"
   , "effect"
   , "formatters"
   , "generics-rep"
   , "halogen"
+  , "halogen-hooks"
   , "now"
   , "numbers"
   , "psci-support"

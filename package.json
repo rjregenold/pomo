@@ -10,6 +10,7 @@
     "postinstall": "spago install",
     "clean": "rm -rf node_modules output .spago dist/* *.lock",
     "dev": "parcel build/dev/index.html",
+    "build": "spago build",
     "watch": "spago build --watch",
     "test": "spago -x test.dhall test",
     "testwatch": "spago -x test.dhall test --watch",

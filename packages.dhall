@@ -119,35 +119,28 @@ let additions =
 
 
 let upstream =
-      https://github.com/purescript/package-sets/releases/download/psc-0.13.6-20200309/packages.dhall sha256:9221987b4e7ea99ccd0efbe056f7bebc872cd92e0058efe5baa181d73359e7b3
+      https://github.com/purescript/package-sets/releases/download/psc-0.13.6-20200404/packages.dhall sha256:f239f2e215d0cbd5c203307701748581938f74c4c78f4aeffa32c11c131ef7b6
 
 let overrides = {=}
 
-let additions = 
-  { codec-argonaut =
-    { dependencies =
-        [ "argonaut-core"
-        , "codec"
-        , "generics-rep"
-        , "variant"
-        , "ordered-collections"
-        , "type-equality"
-        ]
-    , repo =
-        "https://github.com/garyb/purescript-codec-argonaut.git"
-    , version =
-        "v7.1.0"
-    }
-  , codec =
-    { dependencies =
-        [ "profunctor"
-        , "transformers"
-        ]
-    , repo =
-        "https://github.com/garyb/purescript-codec.git"
-    , version =
-        "v3.0.0"
-    }
-  }
+let additions =
+      { codec-argonaut =
+          { dependencies =
+            [ "argonaut-core"
+            , "codec"
+            , "generics-rep"
+            , "variant"
+            , "ordered-collections"
+            , "type-equality"
+            ]
+          , repo = "https://github.com/garyb/purescript-codec-argonaut.git"
+          , version = "v7.1.0"
+          }
+      , codec =
+          { dependencies = [ "profunctor", "transformers" ]
+          , repo = "https://github.com/garyb/purescript-codec.git"
+          , version = "v3.0.0"
+          }
+      }
 
 in  upstream // overrides // additions
