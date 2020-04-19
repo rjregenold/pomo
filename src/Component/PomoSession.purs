@@ -21,6 +21,7 @@ import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
 import Pomo.Data.Timer as Timer
 import Pomo.Data.TimerSettings (TimerSettings)
+import Pomo.Graphics.Canvas as PomoCanvas
 import Web.HTML.HTMLElement (HTMLElement)
 
 type Input = 
@@ -48,9 +49,9 @@ component = Hooks.component \input -> Hooks.do
           , HP.width $ fromMaybe 0 $ map (_.width >>> Int.round) contentRect
           , HP.height $ fromMaybe 0 $ map (_.height >>> Int.round) contentRect
           ]
-      , HH.div [ HP.class_ (wrap "timer-details__type") ] [ HH.text $ timerTypeLabel input.pomoSession ]
-      , HH.div [ HP.class_ (wrap "timer-details__timer") ] [ HH.text $ timerLabel input.pomoSession ]
-      , HH.div [ HP.class_ (wrap "timer-details__completed") ] [ HH.text $ pomosCompletedLabel input.pomoSession ]
+      , HH.h1_ [ HH.text $ timerTypeLabel input.pomoSession ]
+      , HH.h2_ [ HH.text $ timerLabel input.pomoSession ]
+      , HH.h5_ [ HH.text $ pomosCompletedLabel input.pomoSession ]
       ]
 
   where
@@ -67,15 +68,19 @@ component = Hooks.component \input -> Hooks.do
   renderTimer timerSettings pomoSession canvas ctx rect = Canvas.withContext ctx do
     clearContext
     renderPomosRemaining 0
+    renderPomosRemainingText 0
     renderPomosUntilLongBreak 1
+    renderPomosUntilLongBreakText 1
     renderCurrentTimer 2
+    renderCurrentTimerText 2
     where
     backgroundColor = "#ffffff"
     pomosRemainingColor = "#058b00"
     pomosUntilLongBreakColor = "#b82ee5"
     currentTimerColor = "#909195"
     strokeWidth = 30.0
-    fullRadius = (Math.min rect.height rect.width) / 2.0 - (strokeWidth / 2.0)
+    canvasDim = Math.min rect.height rect.width
+    fullRadius = canvasDim / 2.0 - (strokeWidth / 2.0) - strokeWidth
     startAngle = 0.0
     endAngle = Math.pi * 2.0
     clearContext = do
@@ -102,6 +107,20 @@ component = Hooks.component \input -> Hooks.do
       Canvas.setLineCap ctx Canvas.Round
       Canvas.setLineWidth ctx strokeWidth
       Canvas.arc ctx circle
+
+    renderPomosRemainingText mult =
+      let args = PomoCanvas.defaultTextArgs 
+                 { text = "Pomos Remaining Today"
+                 , diameter = canvasDim - (Int.toNumber mult) * strokeWidth
+                 , startAngle = 90.0
+                 , align = PomoCanvas.Center
+                 , pos = PomoCanvas.Inside
+                 , facing = PomoCanvas.Outward
+                 , fontName = "Arial"
+                 , fontSize = "26px"
+                 }
+       in PomoCanvas.renderCurvedText ctx args
+
     renderCurrentTimer mult = Canvas.strokePath ctx do
       let totalTicks = unwrap (Duration.fromDuration (Timer.timerDuration pomoSession.currentTimer.timer))
           remainingTicks = unwrap (Timer.remainingMs pomoSession.currentTimer.timer)
@@ -118,6 +137,20 @@ component = Hooks.component \input -> Hooks.do
       Canvas.setLineCap ctx Canvas.Round
       Canvas.setLineWidth ctx strokeWidth
       Canvas.arc ctx circle
+
+    renderCurrentTimerText mult =
+      let args = PomoCanvas.defaultTextArgs 
+                 { text = "Current Timer"
+                 , diameter = canvasDim - (Int.toNumber mult) * strokeWidth
+                 , startAngle = 90.0
+                 , align = PomoCanvas.Center
+                 , pos = PomoCanvas.Inside
+                 , facing = PomoCanvas.Outward
+                 , fontName = "Arial"
+                 , fontSize = "26px"
+                 }
+       in PomoCanvas.renderCurvedText ctx args
+
     renderPomosUntilLongBreak mult = Canvas.strokePath ctx do
       let totalTicks = unwrap timerSettings.pomosBetweenLongBreak
           remainingTicks = unwrap timerSettings.pomosBetweenLongBreak - unwrap pomoSession.completedPomos `mod` unwrap timerSettings.pomosBetweenLongBreak
@@ -135,6 +168,19 @@ component = Hooks.component \input -> Hooks.do
       Canvas.setLineWidth ctx strokeWidth
       Canvas.arc ctx circle
 
+    renderPomosUntilLongBreakText mult =
+      let args = PomoCanvas.defaultTextArgs 
+                 { text = "Pomos Until Long Break"
+                 , diameter = canvasDim - (Int.toNumber mult) * strokeWidth
+                 , startAngle = 90.0
+                 , align = PomoCanvas.Center
+                 , pos = PomoCanvas.Inside
+                 , facing = PomoCanvas.Outward
+                 , fontName = "Arial"
+                 , fontSize = "26px"
+                 }
+       in PomoCanvas.renderCurvedText ctx args
+
   timerTypeLabel pomoSession = case pomoSession.currentTimer.timerType of
     PomoSession.Pomodoro -> "Pomodoro"
     PomoSession.ShortBreak -> "Short Break"
@@ -143,4 +189,4 @@ component = Hooks.component \input -> Hooks.do
   timerLabel pomoSession = Timer.render pomoSession.currentTimer.timer
 
   pomosCompletedLabel pomoSession =
-    "Pomodoros Completed Today: " <> show (unwrap pomoSession.completedPomos)
+    "Completed Today: " <> show (unwrap pomoSession.completedPomos)

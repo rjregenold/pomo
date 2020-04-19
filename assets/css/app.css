@@ -1,6 +1,5 @@
 html,
 body {
-  font-family: 'Baloo Tammudu 2', cursive;
   height: 100%;
   margin: 0;
   padding: 0;
@@ -36,17 +35,4 @@ h1,h2,h3,h4,h5,h6 {
 
 .timer-details__labels {
   text-align: center;
-}
-
-.timer-details__type {
-  font-weight: bold;
-  font-size: 3em;
-}
-
-.timer-details__timer {
-  font-size: 2em;
-}
-
-.timer-details__completed {
-  font-size: 1.5em;
 }
