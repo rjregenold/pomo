@@ -8,6 +8,7 @@ You can edit this file as you like.
   , "argonaut-generic"
   , "canvas"
   , "codec-argonaut"
+  , "colors"
   , "console"
   , "effect"
   , "formatters"

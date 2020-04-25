@@ -110,11 +110,13 @@ component =
                   ]
                   [ HH.text buttonLabel ]
               , whenElem showEnableNotificationsBtn $ \_ ->
-                  HH.button 
-                      [ HP.title notificationsLabel
-                      , HE.onClick \_ -> Just RequestNotificationPermissions
+                  HH.div_
+                      [ HH.button 
+                          [ HP.title notificationsLabel
+                          , HE.onClick \_ -> Just RequestNotificationPermissions
+                          ]
+                          [ HH.text notificationsLabel ]
                       ]
-                      [ HH.text notificationsLabel ]
               ]
           ]
       ]
@@ -125,7 +127,7 @@ component =
       Timer.NotRunning _ -> "Start"
       Timer.Running _ -> "Stop"
 
-    notificationsLabel = "Enable Desktop Notifications"
+    notificationsLabel = "Enable Notifications"
 
     showEnableNotificationsBtn =
       state.areNotificationsSupported && state.notificationPermission == NotAsked
@@ -222,7 +224,7 @@ component =
         , currentNotification = Nothing
         }
 
-    tickDelay = Milliseconds 250.0
+    tickDelay = Milliseconds 33.3
 
     notificationData pomoSession =
       case pomoSession.currentTimer.timerType of
