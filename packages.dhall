@@ -141,6 +141,11 @@ let additions =
           , repo = "https://github.com/garyb/purescript-codec.git"
           , version = "v3.0.0"
           }
+      , halogen-hooks =
+          { dependencies = [ "halogen" , "indexed-monad" ]
+          , repo = "https://github.com/thomashoneyman/purescript-halogen-hooks.git"
+          , version = "v0.1.0"
+          }
       }
 
 in  upstream // overrides // additions

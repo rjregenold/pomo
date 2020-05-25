@@ -15,6 +15,7 @@ import Effect.Class (liftEffect)
 import Graphics.Canvas as Canvas
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Hooks as Hooks
 import Math as Math
@@ -26,11 +27,19 @@ import Pomo.Data.TimerSettings (TimerSettings)
 import Pomo.Graphics.Canvas as PomoCanvas
 import Web.HTML.HTMLElement (HTMLElement)
 
+type Slot slot = forall q. H.Slot q Output slot
+
 type Input = 
   { containerEl :: HTMLElement
   , pomoSession :: PomoSession
   , timerSettings :: TimerSettings
   }
+
+data Output 
+  = ToggleTimer
+
+data Action
+  = ToggleClick
 
 type Theme =
   { color0 :: Color
@@ -42,37 +51,66 @@ type Theme =
 
 defaultTheme :: Theme
 defaultTheme =
-  { color0: Color.fromInt 0xffffff
-  , color1: Color.fromInt 0x058b00
-  , color2: Color.fromInt 0xb82ee5
-  , color3: Color.fromInt 0x909195
-  , color4: Color.fromInt 0xffffff
+  { color0: Color.fromInt 0xe2eae8
+  , color1: Color.fromInt 0x241c2a
+  , color2: Color.fromInt 0x465e66
+  , color3: Color.fromInt 0x41bbbe
+  , color4: Color.fromInt 0xe2eae8
   }
 
 component 
-  :: forall q o m
+  :: forall q m
    . MonadAff m
-  => H.Component HH.HTML q Input o m
+  => H.Component HH.HTML q Input Output m
 component = Hooks.component \input -> Hooks.do
   contentRect <- useResizeObserver input.containerEl
 
   _ <- useTimerRender { contentRect, pomoSession: input.pomoSession, timerSettings: input.timerSettings }
 
+  let handleClick = Hooks.raise ToggleTimer
+
   Hooks.pure do
     HH.div
-      [ HP.class_ (wrap "app-home__item")
+      [ HP.classes $ HH.ClassName <$>
+        [ "flex-centered"
+        , "p-relative"
+        , "flex-item-fill"
+        ]
       ]
-      [ HH.canvas 
-          [ HP.id_ canvasId
-          , HP.class_ (wrap "timer-details__canvas")
-          , HP.width $ fromMaybe 0 $ map (_.width >>> Int.round) contentRect
-          , HP.height $ fromMaybe 0 $ map (_.height >>> Int.round) contentRect
+      [ HH.div
+        [ HP.classes $ HH.ClassName <$>
+          [ "flex-item-default"
+          , "z-2"
+          , "text-center"
           ]
-      , HH.h2_ [ HH.text $ timerLabel input.pomoSession ]
-      , HH.h5_ [ HH.text $ pomosCompletedLabel input.pomoSession ]
+        ]
+        [ HH.h2_ [ HH.text $ timerLabel input.pomoSession ]
+        , HH.h5_ [ HH.text $ pomosCompletedLabel input.pomoSession ]
+        , HH.button
+          [ HP.classes $ HH.ClassName <$>
+            [ "btn"
+            ]
+          , HE.onClick \_ -> Just handleClick
+          ]
+          [ HH.text (buttonLabel input.pomoSession) ]
+        ]
+      , HH.canvas 
+        [ HP.id_ canvasId
+        , HP.classes $ HH.ClassName <$>
+          [ "p-absolute"
+          , "flex-item-fill"
+          , "z-0"
+          ]
+        , HP.width $ fromMaybe 0 $ map (_.width >>> Int.round) contentRect
+        , HP.height $ fromMaybe 0 $ map (_.height >>> Int.round) contentRect
+        ]
       ]
 
   where
+
+  buttonLabel sess = case sess.currentTimer.timer of
+    Timer.NotRunning _ -> "Start"
+    Timer.Running _ -> "Stop"
 
   canvasId = "timer-canvas"
 
@@ -189,6 +227,7 @@ component = Hooks.component \input -> Hooks.do
 
   timerLabel pomoSession = Timer.render pomoSession.currentTimer.timer
 
+  pomosCompletedLabel :: PomoSession.PomoSession -> String
   pomosCompletedLabel pomoSession =
     "Completed Today: " <> show (unwrap pomoSession.completedPomos)
 

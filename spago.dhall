@@ -18,6 +18,8 @@ You can edit this file as you like.
   , "now"
   , "numbers"
   , "psci-support"
+  , "routing"
+  , "routing-duplex"
   , "type-equality"
   , "web-storage"
   ]
