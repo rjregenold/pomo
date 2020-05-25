@@ -74,7 +74,7 @@ type ChildSlots =
   )
 
 component 
-  :: forall q r m o
+  :: forall r m o
    . MonadAff m
   => MonadAsk { | WithEnv r } m
   => LocalStorage m

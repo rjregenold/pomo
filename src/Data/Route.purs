@@ -1,6 +1,6 @@
 module Pomo.Data.Route where
 
-import Prelude
+import Prelude hiding ((/))
 
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
