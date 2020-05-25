@@ -14,7 +14,6 @@ import Effect.Class (liftEffect)
 import Halogen as H
 import Halogen.Hooks (Hook, HookM, UseEffect, UseState)
 import Halogen.Hooks as Hooks
-import Halogen.Hooks.HookM (StateToken)
 import Halogen.Query.EventSource as ES
 import Unsafe.Coerce (unsafeCoerce)
 import Web.Event.Event (EventType(..))
@@ -32,24 +31,24 @@ newtype UseWindowDimensions hooks = UseWindowDimensions (UseEffect (UseState (Ma
 
 derive instance newtypeUseWindowDimensions :: Newtype (UseWindowDimensions hooks) _
 
-useWindowDimensions :: forall slots output m. MonadAff m => Hook slots output m UseWindowDimensions (Maybe Dimensions)
+useWindowDimensions :: forall m. MonadAff m => Hook m UseWindowDimensions (Maybe Dimensions)
 useWindowDimensions = Hooks.wrap Hooks.do
   dimensions /\ dimensionsState <- Hooks.useState Nothing
 
   Hooks.useLifecycleEffect do
-    subscription <- subscribeToWindow dimensionsState
+    subscription <- subscribeToWindow (Hooks.put dimensionsState)
     pure $ Just $ Hooks.unsubscribe subscription
 
   Hooks.pure dimensions
 
   where
 
-  subscribeToWindow :: StateToken (Maybe Dimensions) -> HookM slots output m H.SubscriptionId
-  subscribeToWindow dimensionsState = do
+  subscribeToWindow :: (Maybe Dimensions -> HookM m Unit) -> HookM m H.SubscriptionId
+  subscribeToWindow setDimensionsState = do
     let readDimensions win = do
           w <- liftEffect $ Window.innerWidth win
           h <- liftEffect $ Window.innerHeight win
-          Hooks.put dimensionsState $ Just { width: w, height: h }
+          setDimensionsState $ Just { width: w, height: h }
 
     window <- liftEffect HTML.window
     subscriptionId <- Hooks.subscribe do

@@ -7,7 +7,7 @@ import Color as Color
 import Control.Apply (lift3)
 import Data.Int as Int
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Data.Time.Duration as Duration
 import Data.Traversable (sequence, traverse)
 import Effect.Aff.Class (class MonadAff)
@@ -62,12 +62,12 @@ component
   :: forall q m
    . MonadAff m
   => H.Component HH.HTML q Input Output m
-component = Hooks.component \input -> Hooks.do
+component = Hooks.component \{ outputToken } input -> Hooks.do
   contentRect <- useResizeObserver input.containerEl
 
   _ <- useTimerRender { contentRect, pomoSession: input.pomoSession, timerSettings: input.timerSettings }
 
-  let handleClick = Hooks.raise ToggleTimer
+  let handleClick = Hooks.raise outputToken ToggleTimer
 
   Hooks.pure do
     HH.div
