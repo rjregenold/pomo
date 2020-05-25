@@ -25,7 +25,7 @@ import Pomo.Component.Modal as Modal
 import Pomo.Component.PomoSession as PomoSessionComponent
 import Pomo.Component.HTML.Header as Header
 import Pomo.Component.HTML.Utils (maybeElem, whenElem)
-import Pomo.Component.Utils (OpaqueSlot)
+import Pomo.Component.SettingsModal as SettingsModal
 import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
 import Pomo.Data.Route as Route
@@ -70,8 +70,11 @@ derive instance eqNotificationPermission :: Eq NotificationPermission
 
 type ChildSlots =
   ( pomoSession :: PomoSessionComponent.Slot Unit
-  , settingsModal :: OpaqueSlot Unit
+  , settingsModal :: SettingsModal.Slot Unit
   )
+
+_settingsModal :: SProxy "settingsModal"
+_settingsModal = SProxy
 
 component 
   :: forall r m o
@@ -148,7 +151,7 @@ component =
           ]
           -}
         ]
-      , maybeElem state.settingsModalId \_ -> renderSettingsModal
+      , HH.slot _settingsModal unit SettingsModal.component unit absurd
       ]
 
     where
@@ -158,28 +161,10 @@ component =
     showEnableNotificationsBtn =
       state.areNotificationsSupported && state.notificationPermission == NotAsked
 
-    renderSettingsModal = Modal.modal CloseSettings
-      [ Modal.header
-        { title: Just "Settings"
-        , action: Just CloseSettings
-        }
-      , Modal.body
-        [ HH.text "This is the settings modal" ]
-      , Modal.footer
-        { buttons:
-            [ HH.button
-              [ HP.class_ (HH.ClassName "btn") 
-              , HE.onClick (const (Just CloseSettings))
-              ]
-              [ HH.text "Save" ]
-            ]
-        }
-      ]
-
-  handleQuery :: forall slots a. Query a -> H.HalogenM State Action slots o m (Maybe a)
+  handleQuery :: forall a. Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
   handleQuery = case _ of
     ShowSettings a -> do
-      handleAction OpenSettings
+      void $ H.query _settingsModal unit $ H.tell $ SettingsModal.OpenSettings
       pure (Just a)
 
   handleAction :: forall slots. Action -> H.HalogenM State Action slots o m Unit

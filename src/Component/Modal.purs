@@ -44,7 +44,7 @@ whenClose ev sid close =
 
 modal 
   :: forall action slots m
-   . action
+   . Maybe action
   -> Array (H.ComponentHTML action slots m)
   -> H.ComponentHTML action slots m
 modal click html =
@@ -53,7 +53,7 @@ modal click html =
     [ HH.a
       [ HP.classes overlayClasses
       , HPA.label "Close"
-      , HE.onClick \_ -> Just click
+      , HE.onClick \_ -> click
       ]
       []
     , HH.div
