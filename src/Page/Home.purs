@@ -15,25 +15,22 @@ import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Pomo.Capability.LocalStorage (class LocalStorage)
-import Pomo.Capability.Navigate (class Navigate, navigate)
+import Pomo.Capability.Navigate (class Navigate)
 import Pomo.Capability.Notifications (class Notifications)
 import Pomo.Capability.Notifications as Notifications
 import Pomo.Capability.Now (class Now, now)
 import Pomo.Capability.PlaySounds (class PlaySounds, playSound)
-import Pomo.Component.Modal as Modal
 import Pomo.Component.PomoSession as PomoSessionComponent
 import Pomo.Component.HTML.Header as Header
 import Pomo.Component.HTML.Utils (maybeElem)
 import Pomo.Component.SettingsModal as SettingsModal
 import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
-import Pomo.Data.Route as Route
 import Pomo.Data.Timer as Timer
 import Pomo.Data.TimerSettings (TimerSettings)
 import Pomo.Env (WithEnv)
 import Pomo.Web.Notification.Notification as Notification
 import Web.HTML.HTMLElement (HTMLElement)
-import Web.UIEvent.KeyboardEvent as KE
 
 type Slot = H.Slot Query Void
 
@@ -43,16 +40,12 @@ type State =
   , pomoSession :: PomoSession
   , currentNotification :: Maybe Notification.Notification
   , alarmUrl :: Maybe String
-  , settingsModalId :: Maybe H.SubscriptionId
   }
 
 data Action
   = Init
   | Tick
   | HandlePomoSession PomoSessionComponent.Output
-  | OpenSettings
-  | CloseSettings
-  | HandleKeySettings KE.KeyboardEvent
 
 data Query a
   = ShowSettings a
@@ -84,7 +77,6 @@ component =
         , pomoSession: PomoSession.defaultPomoSession
         , currentNotification: Nothing
         , alarmUrl: Nothing
-        , settingsModalId: Nothing
         }
     , render
     , eval: H.mkEval $ H.defaultEval
@@ -167,18 +159,6 @@ component =
             let pomoSession = PomoSession.stopTimer st.pomoSession timerSettings
             PomoSession.saveSession pomoSession
             H.put st { pomoSession = pomoSession }
-
-    OpenSettings -> do
-      id <- Modal.initializeWith (Just <<< HandleKeySettings)
-      H.modify_ _ { settingsModalId = Just id }
-
-    CloseSettings -> do
-      navigate Route.Home
-      H.modify_ _ { settingsModalId = Nothing }
-
-    HandleKeySettings ev -> do
-      { settingsModalId } <- H.get
-      traverse_ (\sid -> Modal.whenClose ev sid $ handleAction CloseSettings) settingsModalId
 
     where
 

@@ -2,9 +2,10 @@ module Pomo.Component.SettingsModal where
 
 import Prelude
 
-import Data.Maybe (Maybe(..), maybe)
+import Data.Foldable (traverse_)
+import Data.Maybe (Maybe(..), isJust, maybe)
 import Data.Tuple.Nested ((/\))
-import Effect.Class (class MonadEffect)
+import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
@@ -23,14 +24,14 @@ import Pomo.Web.Notification.Notification as Notification
 type Slot = H.Slot Query Void
 
 type State =
-  { isOpen :: Boolean
+  { modalId :: Maybe H.SubscriptionId
   , areNotificationsSupported :: Boolean
   , notificationPermission :: NotificationPermission
   }
 
 defaultState :: State
 defaultState =
-  { isOpen: false
+  { modalId: Nothing
   , areNotificationsSupported: false
   , notificationPermission: NotAsked
   }
@@ -44,13 +45,14 @@ derive instance eqNotificationPermission :: Eq NotificationPermission
 
 data Action
   = CloseSettings
+  | HandleKeySettings
 
 data Query a
   = OpenSettings a
 
 component 
   :: forall i o m
-   . MonadEffect m 
+   . MonadAff m 
   => Navigate m
   => Notifications m
   => H.Component HH.HTML Query i o m
@@ -66,15 +68,11 @@ component = Hooks.component \{ queryToken } _ -> Hooks.do
                               , notificationPermission = maybe NotAsked toNotificationPermission mPermissions
                               }
 
-
-  Hooks.useQuery queryToken case _ of
-    OpenSettings reply -> do
-      Hooks.modify_ stateId $ _ { isOpen = true }
-      pure (Just reply)
-
-  let closeModal = Just do
+  let closeModal_ = do
         navigate Route.Home
-        Hooks.modify_ stateId $ _ { isOpen = false }
+        Hooks.modify_ stateId $ _ { modalId = Nothing }
+
+      closeModal = Just closeModal_
 
       requestNotificationPermissions = Just do
         permission <- Notifications.requestPermission
@@ -83,8 +81,18 @@ component = Hooks.component \{ queryToken } _ -> Hooks.do
                   _ -> Denied
         Hooks.modify_ stateId _ { notificationPermission = p }
 
+      keyPressed ev = Just do
+        { modalId } <- Hooks.get stateId
+        traverse_ (\sid -> Modal.hooksWhenClose ev sid closeModal_) modalId
+
+  Hooks.useQuery queryToken case _ of
+    OpenSettings reply -> do
+      id <- Modal.hooksInitWith keyPressed
+      Hooks.modify_ stateId _ { modalId = Just id }
+      pure (Just reply)
+
   Hooks.pure do
-    whenElem state.isOpen $ \_ -> Modal.modal closeModal
+    whenElem (isJust state.modalId) \_ -> Modal.modal closeModal
       [ Modal.header
         { title: Just "Settings"
         , action: closeModal

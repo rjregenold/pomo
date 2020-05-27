@@ -5,6 +5,7 @@ import Prelude
 import Data.Maybe (Maybe(..))
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
+import Halogen.Hooks as Hooks
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties.ARIA as HPA
@@ -30,6 +31,19 @@ initializeWith toAction = do
       (HTMLDocument.toEventTarget document)
       (toAction <=< KE.fromEvent)
 
+hooksInitWith
+  :: forall action m
+   . MonadAff m
+  => (KE.KeyboardEvent -> Maybe (Hooks.HookM m Unit))
+  -> Hooks.HookM m H.SubscriptionId
+hooksInitWith toAction = do
+  doc <- H.liftEffect $ document =<< window
+  Hooks.subscribe do
+    ES.eventListenerEventSource
+      KET.keydown
+      (HTMLDocument.toEventTarget doc)
+      (\e -> toAction =<< KE.fromEvent e)
+
 whenClose
   :: forall state action slots output m
    . MonadAff m
@@ -40,6 +54,18 @@ whenClose
 whenClose ev sid close =
   when (KE.code ev == "Escape") do
     H.unsubscribe sid
+    close
+
+hooksWhenClose
+  :: forall action m
+   . MonadAff m
+  => KE.KeyboardEvent
+  -> H.SubscriptionId
+  -> Hooks.HookM m Unit
+  -> Hooks.HookM m Unit
+hooksWhenClose ev sid close =
+  when (KE.code ev == "Escape") do
+    Hooks.unsubscribe sid
     close
 
 modal 
