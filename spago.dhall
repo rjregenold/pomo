@@ -14,6 +14,7 @@ You can edit this file as you like.
   , "formatters"
   , "generics-rep"
   , "halogen"
+  , "halogen-formless"
   , "halogen-hooks"
   , "now"
   , "numbers"

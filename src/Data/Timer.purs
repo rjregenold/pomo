@@ -20,7 +20,7 @@ import Data.Symbol (SProxy(..))
 import Data.Variant as V
 import Data.Time.Duration (class Duration, Milliseconds(..), Minutes(..), Seconds(..), convertDuration, fromDuration, negateDuration)
 import Pomo.Capability.Now (class Now, now)
-import Pomo.Data.Time (durationCodec, instantCodec, instantDiff, isNegDuration)
+import Pomo.Data.Time (durationCodec, instantCodec, instantDiff, isNegDuration, minutesCodec)
 
 type RunningTimerState =
   { duration :: Minutes
@@ -37,9 +37,6 @@ derive instance genericTimer :: Generic Timer _
 
 instance showTimer :: Show Timer where
   show = genericShow
-
-minutesCodec :: CA.JsonCodec Minutes
-minutesCodec = durationCodec
 
 runningTimerStateCodec :: CA.JsonCodec RunningTimerState
 runningTimerStateCodec =

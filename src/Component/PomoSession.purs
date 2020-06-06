@@ -20,6 +20,7 @@ import Halogen.HTML.Properties as HP
 import Halogen.Hooks as Hooks
 import Math as Math
 import Pomo.Component.Hooks.UseResizeObserver (useResizeObserver)
+import Pomo.Data.PomoCount as PomoCount
 import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
 import Pomo.Data.Timer as Timer
@@ -148,7 +149,7 @@ component = Hooks.component \{ outputToken } input -> Hooks.do
         , y: rect.top 
         }
     renderPomosRemaining mult = Canvas.strokePath ctx do
-      let totalTicks = Int.toNumber (unwrap timerSettings.pomoDailyGoal)
+      let totalTicks = Int.toNumber (PomoCount.unwrap timerSettings.pomoDailyGoal)
           remainingTicks = Int.toNumber (pomosRemainingToday timerSettings pomoSession)
           tickValue = endAngle / totalTicks
           end = tickValue * remainingTicks
@@ -182,7 +183,7 @@ component = Hooks.component \{ outputToken } input -> Hooks.do
       Canvas.arc ctx circle
 
     renderPomosUntilLongBreak mult = Canvas.strokePath ctx do
-      let totalTicks = unwrap timerSettings.pomosBetweenLongBreak
+      let totalTicks = PomoCount.unwrap timerSettings.pomosBetweenLongBreak
           remainingTicks = pomosUntilLongBreak timerSettings pomoSession
           tickValue = endAngle / Int.toNumber totalTicks
           end = tickValue * Int.toNumber remainingTicks
@@ -229,16 +230,16 @@ component = Hooks.component \{ outputToken } input -> Hooks.do
 
   pomosCompletedLabel :: PomoSession.PomoSession -> String
   pomosCompletedLabel pomoSession =
-    "Completed Today: " <> show (unwrap pomoSession.completedPomos)
+    "Completed Today: " <> show (PomoCount.unwrap pomoSession.completedPomos)
 
   pomosUntilLongBreak timerSettings pomoSession =
-    unwrap timerSettings.pomosBetweenLongBreak - unwrap pomoSession.completedPomos `mod` unwrap timerSettings.pomosBetweenLongBreak
+    PomoCount.unwrap timerSettings.pomosBetweenLongBreak - PomoCount.unwrap pomoSession.completedPomos `mod` PomoCount.unwrap timerSettings.pomosBetweenLongBreak
 
   pomosUntilLongBreakLabel timerSettings pomoSession =
     "Pomos Until Long Break: " <> show (pomosUntilLongBreak timerSettings pomoSession)
 
   pomosRemainingToday timerSettings pomoSession =
-      unwrap timerSettings.pomoDailyGoal - unwrap pomoSession.completedPomos
+      PomoCount.unwrap timerSettings.pomoDailyGoal - PomoCount.unwrap pomoSession.completedPomos
 
   pomosRemainingTodayLabel timerSettings pomoSession =
     "Pomos Remaining Today: " <> show (pomosRemainingToday timerSettings pomoSession)

@@ -6,6 +6,8 @@ import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(..), isJust, maybe)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff.Class (class MonadAff)
+import Effect.Class.Console (logShow)
+import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
@@ -14,6 +16,7 @@ import Halogen.Hooks as Hooks
 import Pomo.Capability.Navigate (class Navigate, navigate)
 import Pomo.Capability.Notifications (class Notifications)
 import Pomo.Capability.Notifications as Notifications
+import Pomo.Component.Forms.TimerSettingsForm as TimerSettingsForm
 import Pomo.Component.Hooks.UseInitializer (useInitializer)
 import Pomo.Component.HTML.Utils (whenElem)
 import Pomo.Component.Modal as Modal
@@ -46,6 +49,7 @@ derive instance eqNotificationPermission :: Eq NotificationPermission
 data Action
   = CloseSettings
   | HandleKeySettings
+  | HandleSettingsForm TimerSettingsForm.Settings
 
 data Query a
   = OpenSettings a
@@ -85,6 +89,9 @@ component = Hooks.component \{ queryToken } _ -> Hooks.do
         { modalId } <- Hooks.get stateId
         traverse_ (\sid -> Modal.hooksWhenClose ev sid closeModal_) modalId
 
+      handleSettingsForm settings = Just do
+        logShow settings
+
   Hooks.useQuery queryToken case _ of
     OpenSettings reply -> do
       id <- Modal.hooksInitWith keyPressed
@@ -104,6 +111,7 @@ component = Hooks.component \{ queryToken } _ -> Hooks.do
               , HE.onClick \_ -> requestNotificationPermissions
               ]
               [ HH.text notificationsLabel ]
+        , HH.slot F._formless unit (F.component (const TimerSettingsForm.input) TimerSettingsForm.spec) unit handleSettingsForm
         ]
       ]
 

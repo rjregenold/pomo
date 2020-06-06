@@ -2,7 +2,6 @@ module Pomo.Page.Home where
 
 import Prelude
 
-import Control.Apply (lift2)
 import Control.Monad.Reader (class MonadAsk, ask)
 import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -28,6 +27,7 @@ import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
 import Pomo.Data.Timer as Timer
 import Pomo.Data.TimerSettings (TimerSettings)
+import Pomo.Data.TimerSettings as TimerSettings
 import Pomo.Env (WithEnv)
 import Pomo.Web.Notification.Notification as Notification
 import Web.HTML.HTMLElement (HTMLElement)
@@ -36,7 +36,7 @@ type Slot = H.Slot Query Void
 
 type State =
   { contentBody :: Maybe HTMLElement
-  , timerSettings :: Maybe TimerSettings
+  , timerSettings :: TimerSettings
   , pomoSession :: PomoSession
   , currentNotification :: Maybe Notification.Notification
   , alarmUrl :: Maybe String
@@ -73,7 +73,7 @@ component =
   H.mkComponent
     { initialState: \_ ->
         { contentBody: Nothing
-        , timerSettings: Nothing
+        , timerSettings: TimerSettings.defaultTimerSettings
         , pomoSession: PomoSession.defaultPomoSession
         , currentNotification: Nothing
         , alarmUrl: Nothing
@@ -107,8 +107,8 @@ component =
           ]
         , HP.ref $ H.RefLabel "content-body"
         ]
-        [ maybeElem (lift2 (\contentBody timerSettings -> { contentBody, timerSettings }) state.contentBody state.timerSettings) \{ contentBody, timerSettings } ->
-            HH.slot (SProxy :: _ "pomoSession") unit PomoSessionComponent.component { containerEl: contentBody, pomoSession: state.pomoSession, timerSettings } (Just <<< HandlePomoSession)
+        [ maybeElem state.contentBody \contentBody ->
+            HH.slot (SProxy :: _ "pomoSession") unit PomoSessionComponent.component { containerEl: contentBody, pomoSession: state.pomoSession, timerSettings: state.timerSettings } (Just <<< HandlePomoSession)
         ]
       , HH.slot _settingsModal unit SettingsModal.component unit absurd
       ]
@@ -123,7 +123,9 @@ component =
   handleAction action = case action of
     Init -> do
       mContentBody <- H.getHTMLElementRef (H.RefLabel "content-body")
-      { assetUrls, timerSettings } <- ask
+      { assetUrls } <- ask
+      mTimerSettings <- TimerSettings.restoreSettings
+      let timerSettings = fromMaybe TimerSettings.defaultTimerSettings mTimerSettings
       currentTime <- now
       st <- H.get
       mExistingSession <- map (map $ PomoSession.tickSession timerSettings currentTime) PomoSession.restoreSession
@@ -131,7 +133,7 @@ component =
           pomoSession = fromMaybe initSession mExistingSession
           st' = st 
                 { contentBody = mContentBody
-                , timerSettings = Just timerSettings
+                , timerSettings = timerSettings
                 , pomoSession = pomoSession 
                 , alarmUrl = Just assetUrls.audio.ding
                 }
@@ -141,8 +143,7 @@ component =
 
     Tick -> do
       st <- H.get
-      { timerSettings } <- ask
-      pomoSession <- PomoSession.tickSessionM timerSettings st.pomoSession
+      pomoSession <- PomoSession.tickSessionM st.timerSettings st.pomoSession
       H.put st { pomoSession = pomoSession }
       when (not $ PomoSession.isTimerRunning pomoSession) do
         PomoSession.saveSession pomoSession
@@ -155,8 +156,7 @@ component =
         case st.pomoSession.currentTimer.timer of
           Timer.NotRunning _ -> startSession st
           Timer.Running _ -> do
-            { timerSettings } <- ask
-            let pomoSession = PomoSession.stopTimer st.pomoSession timerSettings
+            let pomoSession = PomoSession.stopTimer st.pomoSession st.timerSettings
             PomoSession.saveSession pomoSession
             H.put st { pomoSession = pomoSession }
 
