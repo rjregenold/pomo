@@ -2,7 +2,7 @@ module Pomo.Component.Modal where
 
 import Prelude
 
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.Hooks as Hooks
@@ -32,7 +32,7 @@ initializeWith toAction = do
       (toAction <=< KE.fromEvent)
 
 hooksInitWith
-  :: forall action m
+  :: forall m
    . MonadAff m
   => (KE.KeyboardEvent -> Maybe (Hooks.HookM m Unit))
   -> Hooks.HookM m H.SubscriptionId
@@ -57,7 +57,7 @@ whenClose ev sid close =
     close
 
 hooksWhenClose
-  :: forall action m
+  :: forall m
    . MonadAff m
   => KE.KeyboardEvent
   -> H.SubscriptionId

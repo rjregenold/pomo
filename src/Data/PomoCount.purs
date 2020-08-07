@@ -11,7 +11,6 @@ import Data.Enum (class Enum, class BoundedEnum, Cardinality(..), fromEnum, toEn
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
 
 newtype PomoCount = PomoCount Int
 

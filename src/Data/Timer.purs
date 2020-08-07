@@ -20,7 +20,7 @@ import Data.Symbol (SProxy(..))
 import Data.Variant as V
 import Data.Time.Duration (class Duration, Milliseconds(..), Minutes(..), Seconds(..), convertDuration, fromDuration, negateDuration)
 import Pomo.Capability.Now (class Now, now)
-import Pomo.Data.Time (durationCodec, instantCodec, instantDiff, isNegDuration, minutesCodec)
+import Pomo.Data.Time (instantCodec, instantDiff, isNegDuration, minutesCodec)
 
 type RunningTimerState =
   { duration :: Minutes
