@@ -79,6 +79,6 @@ component =
   render { route } = case route of
     Just r -> case r of
       _ ->
-        HH.slot _home unit Home.component {} absurd
+        HH.slot _home unit Home.component { route } absurd
     Nothing ->
       HH.div_ [ HH.text "Page not found" ]

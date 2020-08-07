@@ -21,10 +21,11 @@ import Pomo.Component.Hooks.UseInitializer (useInitializer)
 import Pomo.Component.HTML.Utils (whenElem)
 import Pomo.Component.Modal as Modal
 import Pomo.Data.Route as Route
+import Pomo.Data.TimerSettings (TimerSettings)
 -- TODO: abstract this dependency away
 import Pomo.Web.Notification.Notification as Notification
 
-type Slot = H.Slot Query Void
+type Slot = H.Slot Query Output
 
 type State =
   { modalId :: Maybe H.SubscriptionId
@@ -54,13 +55,16 @@ data Action
 data Query a
   = OpenSettings a
 
+data Output
+  = SettingsUpdated TimerSettings
+
 component 
-  :: forall i o m
+  :: forall m
    . MonadAff m 
   => Navigate m
   => Notifications m
-  => H.Component HH.HTML Query i o m
-component = Hooks.component \{ queryToken } _ -> Hooks.do
+  => H.Component HH.HTML Query TimerSettings Output m
+component = Hooks.component \{ outputToken, queryToken } input -> Hooks.do
   state /\ stateId <- Hooks.useState defaultState
 
   useInitializer do
@@ -91,6 +95,15 @@ component = Hooks.component \{ queryToken } _ -> Hooks.do
 
       handleSettingsForm settings = Just do
         logShow settings
+        let timerSettings = 
+              { pomoDuration: settings.pomoDuration
+              , shortBreakDuration: settings.shortBreakDuration
+              , longBreakDuration: settings.longBreakDuration
+              , pomosBetweenLongBreak: settings.pomosBetweenLongBreak
+              , pomoDailyGoal: settings.pomoDailyGoal
+              } 
+        Hooks.raise outputToken (SettingsUpdated timerSettings)
+        closeModal_
 
   Hooks.useQuery queryToken case _ of
     OpenSettings reply -> do
@@ -111,7 +124,7 @@ component = Hooks.component \{ queryToken } _ -> Hooks.do
               , HE.onClick \_ -> requestNotificationPermissions
               ]
               [ HH.text notificationsLabel ]
-        , HH.slot F._formless unit (F.component (const TimerSettingsForm.input) TimerSettingsForm.spec) unit handleSettingsForm
+              , HH.slot F._formless unit (F.component (const (TimerSettingsForm.input input)) TimerSettingsForm.spec) unit handleSettingsForm
         ]
       ]
 

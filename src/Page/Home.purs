@@ -25,6 +25,8 @@ import Pomo.Component.HTML.Utils (maybeElem)
 import Pomo.Component.SettingsModal as SettingsModal
 import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
+import Pomo.Data.Route (Route)
+import Pomo.Data.Route as Route
 import Pomo.Data.Timer as Timer
 import Pomo.Data.TimerSettings (TimerSettings)
 import Pomo.Data.TimerSettings as TimerSettings
@@ -40,16 +42,21 @@ type State =
   , pomoSession :: PomoSession
   , currentNotification :: Maybe Notification.Notification
   , alarmUrl :: Maybe String
+  , startRoute :: Maybe Route
+  }
+
+type Input =
+  { route :: Maybe Route
   }
 
 data Action
   = Init
   | Tick
   | HandlePomoSession PomoSessionComponent.Output
+  | HandleSettingsModal SettingsModal.Output
 
 data Query a
   = ShowSettings a
-
 
 type ChildSlots =
   ( pomoSession :: PomoSessionComponent.Slot Unit
@@ -68,15 +75,16 @@ component
   => Notifications m
   => Now m
   => PlaySounds m
-  => H.Component HH.HTML Query {} o m
+  => H.Component HH.HTML Query Input o m
 component = 
   H.mkComponent
-    { initialState: \_ ->
+    { initialState: \{ route } ->
         { contentBody: Nothing
         , timerSettings: TimerSettings.defaultTimerSettings
         , pomoSession: PomoSession.defaultPomoSession
         , currentNotification: Nothing
         , alarmUrl: Nothing
+        , startRoute: route
         }
     , render
     , eval: H.mkEval $ H.defaultEval
@@ -110,16 +118,18 @@ component =
         [ maybeElem state.contentBody \contentBody ->
             HH.slot (SProxy :: _ "pomoSession") unit PomoSessionComponent.component { containerEl: contentBody, pomoSession: state.pomoSession, timerSettings: state.timerSettings } (Just <<< HandlePomoSession)
         ]
-      , HH.slot _settingsModal unit SettingsModal.component unit absurd
+      , HH.slot _settingsModal unit SettingsModal.component state.timerSettings (Just <<< HandleSettingsModal)
       ]
+
+  openSettingsModal = void $ H.query _settingsModal unit $ H.tell SettingsModal.OpenSettings
 
   handleQuery :: forall a. Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
   handleQuery = case _ of
     ShowSettings a -> do
-      void $ H.query _settingsModal unit $ H.tell $ SettingsModal.OpenSettings
+      openSettingsModal
       pure (Just a)
 
-  handleAction :: forall slots. Action -> H.HalogenM State Action slots o m Unit
+  handleAction :: Action -> H.HalogenM State Action ChildSlots o m Unit
   handleAction action = case action of
     Init -> do
       mContentBody <- H.getHTMLElementRef (H.RefLabel "content-body")
@@ -140,6 +150,10 @@ component =
       H.put st'
       -- start the timer if the restored timer is running
       when (PomoSession.isTimerRunning pomoSession) (startSession st')
+      -- show the settings modal if that is the start route
+      case st'.startRoute of
+        Just Route.Settings -> openSettingsModal
+        _ -> pure unit
 
     Tick -> do
       st <- H.get
@@ -159,6 +173,11 @@ component =
             let pomoSession = PomoSession.stopTimer st.pomoSession st.timerSettings
             PomoSession.saveSession pomoSession
             H.put st { pomoSession = pomoSession }
+
+    HandleSettingsModal o -> case o of
+      SettingsModal.SettingsUpdated s -> do
+        TimerSettings.saveSettings s
+        H.modify_ _ { timerSettings = s }
 
     where
 
