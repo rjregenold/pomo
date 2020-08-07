@@ -1,6 +1,7 @@
 module Pomo.Data.PomoCount 
   ( PomoCount
   , pomoCountCodec
+  , unwrap
   ) where
 
 import Prelude
@@ -10,14 +11,15 @@ import Data.Enum (class Enum, class BoundedEnum, Cardinality(..), fromEnum, toEn
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
 
 newtype PomoCount = PomoCount Int
 
-derive instance newtypePomoCount :: Newtype PomoCount _
 derive instance genericPomoCount :: Generic PomoCount _
 derive newtype instance eqPomoCount :: Eq PomoCount
 derive newtype instance ordPomoCount :: Ord PomoCount
+
+unwrap :: PomoCount -> Int
+unwrap (PomoCount x) = x
 
 maxPomoCount :: Int
 maxPomoCount = 120

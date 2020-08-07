@@ -19,6 +19,10 @@
   "author": "RJ Regenold",
   "license": "MIT",
   "devDependencies": {
-    "parcel-bundler": "^1.12.4"
+    "parcel-bundler": "^1.12.4",
+    "sass": "^1.26.5"
+  },
+  "dependencies": {
+    "spectre.css": "^0.5.8"
   }
 }

@@ -17,7 +17,7 @@ import Test.Assert (assert)
 
 main :: Effect Unit
 main = do
-  let settings = unsafePartial $ fromJust TimerSettings.defaultTimerSettings
+  let settings = TimerSettings.defaultTimerSettings
       startMs = Duration.Milliseconds 1577836800000.0
       endMs = startMs <> Duration.convertDuration settings.pomoDuration
       startInstant = unsafePartial $ fromJust $ Instant.instant startMs

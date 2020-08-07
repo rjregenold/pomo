@@ -1,5 +1,6 @@
 module Pomo.Data.Time 
   ( durationCodec
+  , minutesCodec
   , instantCodec
   , instantDiff
   , isPosDuration
@@ -18,6 +19,9 @@ import Effect (Effect)
 
 durationCodec :: forall a. Duration a => CA.JsonCodec a
 durationCodec = CA.prismaticCodec (Just <<< toDuration <<< Milliseconds) (unwrap <<< fromDuration) CA.number
+
+minutesCodec :: CA.JsonCodec Minutes
+minutesCodec = durationCodec
 
 instantCodec :: CA.JsonCodec Instant
 instantCodec = CA.prismaticCodec (instant <<< Milliseconds) (unwrap <<< unInstant) CA.number

@@ -10,13 +10,17 @@ import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Now as Now
 import Pomo.Capability.LocalStorage (class LocalStorage)
+import Pomo.Capability.Navigate (class Navigate)
 import Pomo.Capability.Notifications (class Notifications)
 import Pomo.Capability.Now (class Now)
 import Pomo.Capability.PlaySounds (class PlaySounds)
+import Pomo.Data.Route as Route
 import Pomo.Data.Time (getTimeZoneOffset)
 import Pomo.Env (Env)
 import Pomo.Web.Audio.Audio as Audio
 import Pomo.Web.Notification.Notification as Notification
+import Routing.Duplex (print)
+import Routing.Hash (setHash)
 import Type.Equality (class TypeEquals, from)
 import Web.HTML (window)
 import Web.HTML.Window (localStorage)
@@ -63,3 +67,6 @@ instance notificationsAppM :: Notifications AppM where
 
 instance playSoundsAppM :: PlaySounds AppM where
   playSound url = liftEffect (Audio.play =<< Audio.create url)
+
+instance navigateAppM :: Navigate AppM where
+  navigate = liftEffect <<< setHash <<< print Route.routeCodec

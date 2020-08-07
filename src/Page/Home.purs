@@ -2,89 +2,94 @@ module Pomo.Page.Home where
 
 import Prelude
 
-import Control.Apply (lift2)
 import Control.Monad.Reader (class MonadAsk, ask)
 import Data.Foldable (traverse_)
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (wrap)
 import Data.Symbol (SProxy(..))
 import Data.Time.Duration (Milliseconds(..))
 import Effect.Aff (delay)
 import Effect.Aff.Class (class MonadAff)
-import Effect.Class (liftEffect)
 import Halogen as H
 import Halogen.HTML as HH
-import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Pomo.Capability.LocalStorage (class LocalStorage)
+import Pomo.Capability.Navigate (class Navigate)
 import Pomo.Capability.Notifications (class Notifications)
 import Pomo.Capability.Notifications as Notifications
 import Pomo.Capability.Now (class Now, now)
 import Pomo.Capability.PlaySounds (class PlaySounds, playSound)
 import Pomo.Component.PomoSession as PomoSessionComponent
-import Pomo.Component.HTML.Utils (maybeElem, whenElem)
-import Pomo.Component.Utils (OpaqueSlot)
+import Pomo.Component.HTML.Header as Header
+import Pomo.Component.HTML.Utils (maybeElem)
+import Pomo.Component.SettingsModal as SettingsModal
 import Pomo.Data.PomoSession (PomoSession)
 import Pomo.Data.PomoSession as PomoSession
+import Pomo.Data.Route (Route)
+import Pomo.Data.Route as Route
 import Pomo.Data.Timer as Timer
 import Pomo.Data.TimerSettings (TimerSettings)
+import Pomo.Data.TimerSettings as TimerSettings
 import Pomo.Env (WithEnv)
 import Pomo.Web.Notification.Notification as Notification
-import Web.HTML as HTML
-import Web.HTML.HTMLDocument as HTMLDocument
 import Web.HTML.HTMLElement (HTMLElement)
-import Web.HTML.Window as Window
+
+type Slot = H.Slot Query Void
 
 type State =
-  { body :: Maybe HTMLElement
-  , timerSettings :: Maybe TimerSettings
+  { contentBody :: Maybe HTMLElement
+  , timerSettings :: TimerSettings
   , pomoSession :: PomoSession
-  , areNotificationsSupported :: Boolean
-  , notificationPermission :: NotificationPermission
   , currentNotification :: Maybe Notification.Notification
   , alarmUrl :: Maybe String
+  , startRoute :: Maybe Route
+  }
+
+type Input =
+  { route :: Maybe Route
   }
 
 data Action
   = Init
-  | ToggleTimer
   | Tick
-  | RequestNotificationPermissions
+  | HandlePomoSession PomoSessionComponent.Output
+  | HandleSettingsModal SettingsModal.Output
 
-data NotificationPermission
-  = NotAsked
-  | Granted
-  | Denied
-
-derive instance eqNotificationPermission :: Eq NotificationPermission
+data Query a
+  = ShowSettings a
 
 type ChildSlots =
-  ( pomoSession :: OpaqueSlot Unit
+  ( pomoSession :: PomoSessionComponent.Slot Unit
+  , settingsModal :: SettingsModal.Slot Unit
   )
 
+_settingsModal :: SProxy "settingsModal"
+_settingsModal = SProxy
+
 component 
-  :: forall q r m
+  :: forall r m o
    . MonadAff m
   => MonadAsk { | WithEnv r } m
   => LocalStorage m
+  => Navigate m
   => Notifications m
   => Now m
   => PlaySounds m
-  => H.Component HH.HTML q {} Void m
+  => H.Component HH.HTML Query Input o m
 component = 
   H.mkComponent
-    { initialState: \_ ->
-        { body: Nothing
-        , timerSettings: Nothing
+    { initialState: \{ route } ->
+        { contentBody: Nothing
+        , timerSettings: TimerSettings.defaultTimerSettings
         , pomoSession: PomoSession.defaultPomoSession
-        , areNotificationsSupported: false
-        , notificationPermission: NotAsked
         , currentNotification: Nothing
         , alarmUrl: Nothing
+        , startRoute: route
         }
     , render
     , eval: H.mkEval $ H.defaultEval
         { handleAction = handleAction
+        , handleQuery = handleQuery
         , initialize = Just Init
         }
     }
@@ -94,115 +99,92 @@ component =
   render :: State -> H.ComponentHTML Action ChildSlots m
   render state =
     HH.div
-      [ HP.class_ (wrap "app-home")
+      [ HP.classes $ HH.ClassName <$>
+        [ "container"
+        , "grid-lg"
+        , "d-flex"
+        , "flex-container-flow-col"
+        , "h-100p"
+        ]
       ]
-      [ HH.div
-          [ HP.class_ (wrap "app-home__content")
+      [ Header.header
+      , HH.div
+        [ HP.classes $ HH.ClassName <$>
+          [ "d-flex"
+          , "flex-item-fill"
           ]
-          [ maybeElem (lift2 (\body timerSettings -> { body, timerSettings }) state.body state.timerSettings) \{ body, timerSettings } ->
-              HH.slot (SProxy :: _ "pomoSession") unit PomoSessionComponent.component { containerEl: body, pomoSession: state.pomoSession, timerSettings } absurd
-          , HH.div
-              [ HP.class_ (wrap "app-home__item")
-              ]
-              [ HH.button
-                  [ HP.title buttonLabel
-                  , HE.onClick \_ -> Just ToggleTimer 
-                  ]
-                  [ HH.text buttonLabel ]
-              , whenElem showEnableNotificationsBtn $ \_ ->
-                  HH.div_
-                      [ HH.button 
-                          [ HP.title notificationsLabel
-                          , HE.onClick \_ -> Just RequestNotificationPermissions
-                          ]
-                          [ HH.text notificationsLabel ]
-                      ]
-              ]
-          ]
+        , HP.ref $ H.RefLabel "content-body"
+        ]
+        [ maybeElem state.contentBody \contentBody ->
+            HH.slot (SProxy :: _ "pomoSession") unit PomoSessionComponent.component { containerEl: contentBody, pomoSession: state.pomoSession, timerSettings: state.timerSettings } (Just <<< HandlePomoSession)
+        ]
+      , HH.slot _settingsModal unit SettingsModal.component state.timerSettings (Just <<< HandleSettingsModal)
       ]
 
-    where
+  openSettingsModal = void $ H.query _settingsModal unit $ H.tell SettingsModal.OpenSettings
 
-    buttonLabel = case state.pomoSession.currentTimer.timer of
-      Timer.NotRunning _ -> "Start"
-      Timer.Running _ -> "Stop"
+  handleQuery :: forall a. Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
+  handleQuery = case _ of
+    ShowSettings a -> do
+      openSettingsModal
+      pure (Just a)
 
-    notificationsLabel = "Enable Notifications"
-
-    showEnableNotificationsBtn =
-      state.areNotificationsSupported && state.notificationPermission == NotAsked
-
-  handleAction :: forall slots. Action -> H.HalogenM State Action slots Void m Unit
+  handleAction :: Action -> H.HalogenM State Action ChildSlots o m Unit
   handleAction action = case action of
     Init -> do
-      mBody <- liftEffect getBody
-      { assetUrls, timerSettings } <- ask
+      mContentBody <- H.getHTMLElementRef (H.RefLabel "content-body")
+      { assetUrls } <- ask
+      mTimerSettings <- TimerSettings.restoreSettings
+      let timerSettings = fromMaybe TimerSettings.defaultTimerSettings mTimerSettings
       currentTime <- now
       st <- H.get
-      noteSupport <- Notifications.areNotificationsSupported
-      mPermissions <- if noteSupport
-                      then Notifications.checkPermission
-                      else pure Nothing
       mExistingSession <- map (map $ PomoSession.tickSession timerSettings currentTime) PomoSession.restoreSession
       let initSession = PomoSession.initPomoSession timerSettings.pomoDuration
           pomoSession = fromMaybe initSession mExistingSession
           st' = st 
-                { body = mBody
-                , timerSettings = Just timerSettings
+                { contentBody = mContentBody
+                , timerSettings = timerSettings
                 , pomoSession = pomoSession 
-                , areNotificationsSupported = noteSupport
-                , notificationPermission = maybe NotAsked (case _ of
-                                                                Notification.Granted -> Granted
-                                                                Notification.Denied -> Denied
-                                                                Notification.Default -> NotAsked) mPermissions
                 , alarmUrl = Just assetUrls.audio.ding
                 }
       H.put st'
       -- start the timer if the restored timer is running
       when (PomoSession.isTimerRunning pomoSession) (startSession st')
-
-    ToggleTimer -> do
-      st <- H.get
-      case st.pomoSession.currentTimer.timer of
-        Timer.NotRunning _ -> startSession st
-        Timer.Running _ -> do
-          { timerSettings } <- ask
-          let pomoSession = PomoSession.stopTimer st.pomoSession timerSettings
-          PomoSession.saveSession pomoSession
-          H.put st { pomoSession = pomoSession }
+      -- show the settings modal if that is the start route
+      case st'.startRoute of
+        Just Route.Settings -> openSettingsModal
+        _ -> pure unit
 
     Tick -> do
       st <- H.get
-      { timerSettings } <- ask
-      pomoSession <- PomoSession.tickSessionM timerSettings st.pomoSession
+      pomoSession <- PomoSession.tickSessionM st.timerSettings st.pomoSession
       H.put st { pomoSession = pomoSession }
       when (not $ PomoSession.isTimerRunning pomoSession) do
         PomoSession.saveSession pomoSession
         showNotification st
         playAlarm st
 
-    RequestNotificationPermissions -> do
-      permission <- Notifications.requestPermission
-      let p = case permission of
-                Notification.Granted -> Granted
-                _ -> Denied
-      H.modify_ _ { notificationPermission = p }
+    HandlePomoSession o -> case o of
+      PomoSessionComponent.ToggleTimer -> do
+        st <- H.get
+        case st.pomoSession.currentTimer.timer of
+          Timer.NotRunning _ -> startSession st
+          Timer.Running _ -> do
+            let pomoSession = PomoSession.stopTimer st.pomoSession st.timerSettings
+            PomoSession.saveSession pomoSession
+            H.put st { pomoSession = pomoSession }
+
+    HandleSettingsModal o -> case o of
+      SettingsModal.SettingsUpdated s -> do
+        TimerSettings.saveSettings s
+        H.modify_ _ { timerSettings = s }
 
     where
 
-    getBody = do
-      window <- HTML.window
-      doc <- Window.document window
-      HTMLDocument.body doc
-
-    areNotificationsEnabled st =
-      st.areNotificationsSupported && st.notificationPermission == Granted
-
-    showNotification st =
-      when (areNotificationsEnabled st) do
-        let noteData = notificationData st.pomoSession
-        currentNotification <- Notifications.createNotification noteData.title noteData.body
-        H.modify_ _ { currentNotification = Just currentNotification }
+    showNotification st = do
+      let noteData = notificationData st.pomoSession
+      currentNotification <- Notifications.createNotification noteData.title noteData.body
+      H.modify_ _ { currentNotification = Just currentNotification }
 
     playAlarm st =
       traverse_ playSound st.alarmUrl

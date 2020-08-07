@@ -9,6 +9,8 @@ import Data.Newtype (unwrap)
 import Effect (Effect)
 import Effect.Console (log)
 import Pomo.Data.PomoCount (PomoCount)
+import Pomo.Data.PomoCount as PomoCount
+import Pomo.Data.TimerSettings as TimerSettings
 import Test.Assert (assert)
 import Type.Proxy (Proxy(..))
 
@@ -16,6 +18,11 @@ main :: Effect Unit
 main = do
   log "checking that PomoCount is bounded enum"
   checkBoundedEnum (Proxy :: Proxy PomoCount)
+
+  log "checking that defaultTimerSettings is safe"
+  let defaultSettings = TimerSettings.defaultTimerSettings
+  assert $ PomoCount.unwrap defaultSettings.pomosBetweenLongBreak >= bottom 
+  assert $ PomoCount.unwrap defaultSettings.pomosBetweenLongBreak <= top
 
 
 checkBoundedEnum :: forall e. BoundedEnum e => Proxy e -> Effect Unit
