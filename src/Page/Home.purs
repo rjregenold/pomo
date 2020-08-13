@@ -176,8 +176,13 @@ component =
 
     HandleSettingsModal o -> case o of
       SettingsModal.SettingsUpdated s -> do
+        st <- H.get
+        let pomoSession = PomoSession.applyUpdatedSettings st.pomoSession s
         TimerSettings.saveSettings s
-        H.modify_ _ { timerSettings = s }
+        PomoSession.saveSession pomoSession
+        H.put st { pomoSession = pomoSession
+                 , timerSettings = s
+                 }
 
     where
 

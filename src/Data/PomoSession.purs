@@ -116,6 +116,14 @@ nextTimer completedPomos completedTimerType timerSettings =
       , timerType: Pomodoro
       }
 
+applyUpdatedSettings :: PomoSession -> TimerSettings -> PomoSession
+applyUpdatedSettings sess timerSettings = 
+  let d = case sess.currentTimer.timerType of
+            Pomodoro -> timerSettings.pomoDuration
+            LongBreak -> timerSettings.longBreakDuration
+            ShortBreak -> timerSettings.shortBreakDuration
+   in sess { currentTimer = sess.currentTimer { timer = Timer.updateDuration sess.currentTimer.timer d } }
+
 startTimer :: PomoSession -> Instant -> PomoSession
 startTimer sess currentTime = sess
   { currentTimer = sess.currentTimer

@@ -109,6 +109,11 @@ stopTimer timer d = case timer of
   NotRunning _ -> timer
   Running _ -> NotRunning d
 
+updateDuration :: Timer -> Minutes -> Timer
+updateDuration timer d = case timer of
+  NotRunning _ -> NotRunning d
+  Running t -> Running (t { duration = d })
+
 padStart :: Int -> Char -> String -> String
 padStart n c v =
   let prefix = fromCharArray (replicate (n - length v) c)
