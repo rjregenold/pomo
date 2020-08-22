@@ -125,11 +125,8 @@ component = Hooks.component \{ outputToken } input -> Hooks.do
   renderTimer timerSettings pomoSession theme canvas ctx rect = Canvas.withContext ctx do
     clearContext
     renderPomosRemaining 0
-    renderText (pomosRemainingTodayLabel timerSettings pomoSession) 0
     renderPomosUntilLongBreak 1
-    renderText (pomosUntilLongBreakLabel timerSettings pomoSession) 1
     renderCurrentTimer 2
-    renderText (timerTypeLabel pomoSession) 2
     where
     canvasDim = Math.min rect.height rect.width
     -- make the stroke width a percentage of the canvas dimension
@@ -148,56 +145,66 @@ component = Hooks.component \{ outputToken } input -> Hooks.do
         , x: rect.left
         , y: rect.top 
         }
-    renderPomosRemaining mult = Canvas.strokePath ctx do
-      let totalTicks = Int.toNumber (PomoCount.unwrap timerSettings.pomoDailyGoal)
-          remainingTicks = Int.toNumber (pomosRemainingToday timerSettings pomoSession)
-          tickValue = endAngle / totalTicks
-          end = tickValue * remainingTicks
-          circle = 
-            { start: startAngle
-            , end: end
-            , radius: fullRadius - ((strokeWidth + spaceBetweenStrokes) * Int.toNumber mult)
-            , x: rect.width / 2.0
-            , y: rect.height / 2.0
-            }
-      Canvas.setStrokeStyle ctx (Color.toHexString theme.color1)
-      Canvas.setLineCap ctx Canvas.Round
-      Canvas.setLineWidth ctx strokeWidth
-      Canvas.arc ctx circle
+    renderPomosRemaining mult =
+      when (remainingTicks > 0.0) do
+        Canvas.strokePath ctx do
+          Canvas.setStrokeStyle ctx (Color.toHexString theme.color1)
+          Canvas.setLineCap ctx Canvas.Round
+          Canvas.setLineWidth ctx strokeWidth
+          Canvas.arc ctx circle
+        renderText (pomosRemainingTodayLabel timerSettings pomoSession) mult
+      where 
+      totalTicks = Int.toNumber (PomoCount.unwrap timerSettings.pomoDailyGoal)
+      remainingTicks = Int.toNumber (pomosRemainingToday timerSettings pomoSession)
+      tickValue = endAngle / totalTicks
+      end = tickValue * remainingTicks
+      circle = 
+        { start: startAngle
+        , end: end
+        , radius: fullRadius - ((strokeWidth + spaceBetweenStrokes) * Int.toNumber mult)
+        , x: rect.width / 2.0
+        , y: rect.height / 2.0
+        }
 
-    renderCurrentTimer mult = Canvas.strokePath ctx do
-      let totalTicks = unwrap (Duration.fromDuration (Timer.timerDuration pomoSession.currentTimer.timer))
-          remainingTicks = unwrap (Timer.remainingMs pomoSession.currentTimer.timer)
-          tickValue = endAngle / totalTicks
-          end = tickValue * remainingTicks
-          circle = 
-            { start: startAngle
-            , end: end
-            , radius: fullRadius - ((strokeWidth + spaceBetweenStrokes) * Int.toNumber mult)
-            , x: rect.width / 2.0
-            , y: rect.height / 2.0
-            }
-      Canvas.setStrokeStyle ctx (Color.toHexString theme.color3)
-      Canvas.setLineCap ctx Canvas.Round
-      Canvas.setLineWidth ctx strokeWidth
-      Canvas.arc ctx circle
+    renderCurrentTimer mult = do
+      Canvas.strokePath ctx do
+        Canvas.setStrokeStyle ctx (Color.toHexString theme.color3)
+        Canvas.setLineCap ctx Canvas.Round
+        Canvas.setLineWidth ctx strokeWidth
+        Canvas.arc ctx circle
+      renderText (timerTypeLabel pomoSession) mult
+      where 
+      totalTicks = unwrap (Duration.fromDuration (Timer.timerDuration pomoSession.currentTimer.timer))
+      remainingTicks = unwrap (Timer.remainingMs pomoSession.currentTimer.timer)
+      tickValue = endAngle / totalTicks
+      end = tickValue * remainingTicks
+      circle = 
+        { start: startAngle
+        , end: end
+        , radius: fullRadius - ((strokeWidth + spaceBetweenStrokes) * Int.toNumber mult)
+        , x: rect.width / 2.0
+        , y: rect.height / 2.0
+        }
 
-    renderPomosUntilLongBreak mult = Canvas.strokePath ctx do
-      let totalTicks = PomoCount.unwrap timerSettings.pomosBetweenLongBreak
-          remainingTicks = pomosUntilLongBreak timerSettings pomoSession
-          tickValue = endAngle / Int.toNumber totalTicks
-          end = tickValue * Int.toNumber remainingTicks
-          circle = 
-            { start: startAngle
-            , end: end
-            , radius: fullRadius - ((strokeWidth + spaceBetweenStrokes) * Int.toNumber mult)
-            , x: rect.width / 2.0
-            , y: rect.height / 2.0
-            }
-      Canvas.setStrokeStyle ctx (Color.toHexString theme.color2)
-      Canvas.setLineCap ctx Canvas.Round
-      Canvas.setLineWidth ctx strokeWidth
-      Canvas.arc ctx circle
+    renderPomosUntilLongBreak mult = do
+      Canvas.strokePath ctx do
+        Canvas.setStrokeStyle ctx (Color.toHexString theme.color2)
+        Canvas.setLineCap ctx Canvas.Round
+        Canvas.setLineWidth ctx strokeWidth
+        Canvas.arc ctx circle
+      renderText (pomosUntilLongBreakLabel timerSettings pomoSession) mult
+      where 
+      totalTicks = PomoCount.unwrap timerSettings.pomosBetweenLongBreak
+      remainingTicks = pomosUntilLongBreak timerSettings pomoSession
+      tickValue = endAngle / Int.toNumber totalTicks
+      end = tickValue * Int.toNumber remainingTicks
+      circle = 
+        { start: startAngle
+        , end: end
+        , radius: fullRadius - ((strokeWidth + spaceBetweenStrokes) * Int.toNumber mult)
+        , x: rect.width / 2.0
+        , y: rect.height / 2.0
+        }
 
     renderText text mult = do
       let fontName = "Arial"
