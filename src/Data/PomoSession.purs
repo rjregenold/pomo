@@ -13,7 +13,7 @@ import Data.Formatter.DateTime as Format
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.List as List
-import Data.Maybe (Maybe, fromMaybe)
+import Data.Maybe (Maybe, fromMaybe, isJust)
 import Data.Time.Duration (Minutes(..))
 import Pomo.Capability.LocalStorage (class LocalStorage, getItem, setItem)
 import Pomo.Capability.Now (class Now, now, nowDateTimeLocal)
@@ -151,14 +151,23 @@ sessionKey dateTime = "pomoSession-" <> Format.format format dateTime
     , Format.DayOfMonthTwoDigits
     ]
 
-saveSession 
+saveSession'
   :: forall m
    . LocalStorage m 
   => Now m
   => PomoSession 
   -> m Unit
-saveSession sess = do
-  local <- nowDateTimeLocal 
+saveSession' sess =
+  nowDateTimeLocal
+    >>= saveSession sess
+
+saveSession
+  :: forall m
+   . LocalStorage m
+  => PomoSession
+  -> DateTime
+  -> m Unit
+saveSession sess local =
   setItem (sessionKey local) (A.encode pomoSessionCodec sess)
 
 restoreSession 
@@ -169,3 +178,14 @@ restoreSession
 restoreSession = do
   local <- nowDateTimeLocal
   pure <<< bindFlipped (A.decode pomoSessionCodec) =<< getItem (sessionKey local)
+
+hasPersistedSession
+  :: forall m
+   . LocalStorage m
+  => DateTime
+  -> m Boolean
+hasPersistedSession local =
+  getItem (sessionKey local)
+    >>= bindFlipped (A.decode pomoSessionCodec)
+    >>> isJust
+    >>> pure

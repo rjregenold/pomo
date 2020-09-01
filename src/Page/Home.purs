@@ -17,7 +17,7 @@ import Pomo.Capability.LocalStorage (class LocalStorage)
 import Pomo.Capability.Navigate (class Navigate)
 import Pomo.Capability.Notifications (class Notifications)
 import Pomo.Capability.Notifications as Notifications
-import Pomo.Capability.Now (class Now, now)
+import Pomo.Capability.Now (class Now, now, nowDateTimeLocal)
 import Pomo.Capability.PlaySounds (class PlaySounds, playSound)
 import Pomo.Component.PomoSession as PomoSessionComponent
 import Pomo.Component.HTML.Header as Header
@@ -160,7 +160,7 @@ component =
       pomoSession <- PomoSession.tickSessionM st.timerSettings st.pomoSession
       H.put st { pomoSession = pomoSession }
       when (not $ PomoSession.isTimerRunning pomoSession) do
-        PomoSession.saveSession pomoSession
+        PomoSession.saveSession' pomoSession
         showNotification st
         playAlarm st
 
@@ -171,7 +171,7 @@ component =
           Timer.NotRunning _ -> startSession st
           Timer.Running _ -> do
             let pomoSession = PomoSession.stopTimer st.pomoSession st.timerSettings
-            PomoSession.saveSession pomoSession
+            PomoSession.saveSession' pomoSession
             H.put st { pomoSession = pomoSession }
 
     HandleSettingsModal o -> case o of
@@ -179,7 +179,7 @@ component =
         st <- H.get
         let pomoSession = PomoSession.applyUpdatedSettings st.pomoSession s
         TimerSettings.saveSettings s
-        PomoSession.saveSession pomoSession
+        PomoSession.saveSession' pomoSession
         H.put st { pomoSession = pomoSession
                  , timerSettings = s
                  }
@@ -195,21 +195,26 @@ component =
       traverse_ playSound st.alarmUrl
 
     startSession st = do
-      currentTime <- now
       traverse_ Notifications.closeNotification st.currentNotification
+      local <- nowDateTimeLocal
+      currentTime <- now
+      hasSess <- PomoSession.hasPersistedSession local
+      let sess = if hasSess
+                  then st.pomoSession
+                  else PomoSession.initPomoSession st.timerSettings.pomoDuration
+      let pomoSession = PomoSession.startTimer sess currentTime
+      PomoSession.saveSession pomoSession local
+      H.put st
+        { pomoSession = pomoSession
+        , currentNotification = Nothing
+        }
       let loop = do
             H.liftAff (delay tickDelay)
             loopSt <- H.get
             when (PomoSession.isTimerRunning loopSt.pomoSession) do
               handleAction Tick
               loop
-      _ <- H.fork loop
-      let pomoSession = PomoSession.startTimer st.pomoSession currentTime
-      PomoSession.saveSession pomoSession
-      H.put st
-        { pomoSession = pomoSession
-        , currentNotification = Nothing
-        }
+      void (H.fork loop)
 
     tickDelay = Milliseconds 33.3
 
